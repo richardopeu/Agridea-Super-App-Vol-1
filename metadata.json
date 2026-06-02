@@ -1,0 +1,8 @@
+{
+  "name": "Agridea Manufacturing Control App",
+  "description": "Smart Manufacturing Chips Tracing System & COGS/HPP Module for fruit and vegetable chip processing.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
