@@ -88,6 +88,7 @@ export const SEED_LOKASI: Lokasi[] = [
 
 // Active Users
 export const SEED_USERS: User[] = [
+  { id: 'U-00', username: 'richardopeu', role: 'Super Admin', lokasiId: 'JKT', status: 'active', namaLengkap: 'Richardo Utoyo', pass: '016210276', needsPasswordChange: true } as any,
   { id: 'U-01', username: 'richard_admin', role: 'Kepala Pabrik HQ', lokasiId: 'JKT', status: 'active', namaLengkap: 'Richard Petricius' },
   { id: 'U-02', username: 'budi_malang', role: 'Kepala Pabrik Cabang', lokasiId: 'JKT', status: 'active', namaLengkap: 'Budi Hartono' },
   { id: 'U-03', username: 'siti_peeler', role: 'Kupas', lokasiId: 'JKT', status: 'active', namaLengkap: 'Siti Aminah' },
@@ -149,8 +150,7 @@ export const SEED_KARYAWAN: Karyawan[] = [
   { id: 'EMP-JKT-02', nama: 'Afi', nik: '317101010102', role: 'Director', department: 'Management', position: 'Director', lokasiId: 'JKT', tarifDasar: 0, tarifInsentif: 0, targetHarian: 0, status: 'Aktif', gajiBulanan: 15000000 },
   { id: 'EMP-JKT-03', nama: 'Jefri Sirait', nik: '317101010103', role: 'Director', department: 'Management', position: 'Director', lokasiId: 'JKT', tarifDasar: 0, tarifInsentif: 0, targetHarian: 0, status: 'Aktif', gajiBulanan: 15000000 },
   { id: 'EMP-JKT-04', nama: 'Afi HR', nik: '317101010104', role: 'HR & Procurement', department: 'HR & Procurement', position: 'HR & Procurement Manager', lokasiId: 'JKT', tarifDasar: 0, tarifInsentif: 0, targetHarian: 0, status: 'Aktif', gajiBulanan: 8500000 },
-  { id: 'EMP-JKT-05', nama: 'Nadya', nik: '317101010105', role: 'Finance HQ', department: 'Finance', position: 'Finance HQ', lokasiId: 'JKT', tarifDasar: 0, tarifInsentif: 0, targetHarian: 0, status: 'Aktif', gajiBulanan: 8000000 },
-  { id: 'EMP-JKT-06', nama: 'Amelia', nik: '317101010106', role: 'HQ Production Manager', department: 'Production', position: 'HQ Production Manager', lokasiId: 'JKT', tarifDasar: 0, tarifInsentif: 0, targetHarian: 0, status: 'Aktif', gajiBulanan: 9000000 }
+  { id: 'EMP-JKT-05', nama: 'Nadya', nik: '317101010105', role: 'Finance HQ', department: 'Finance', position: 'Finance HQ', lokasiId: 'JKT', tarifDasar: 0, tarifInsentif: 0, targetHarian: 0, status: 'Aktif', gajiBulanan: 8000000 }
 ];
 
 // Suppliers

@@ -4,6 +4,7 @@
  */
 
 export type UserRole =
+  | 'Super Admin'
   | 'Operator'
   | 'Kupas'
   | 'Frying'
@@ -403,4 +404,11 @@ export interface AuditLog {
   tanggal: string;
   modul: string;
   deskripsi: string;
+  time?: string;
+  role?: string;
+  factory?: string;
+  action?: string;
+  oldValue?: string;
+  newValue?: string;
+  reason?: string;
 }

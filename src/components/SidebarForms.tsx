@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   Plus,
   Scale,
@@ -18,13 +18,18 @@ import {
   ChevronRight,
   TrendingUp,
   Flame,
-  AlertCircle
+  AlertCircle,
+  AlertOctagon,
+  Users,
+  UserCheck
 } from 'lucide-react';
 
 interface SidebarFormsProps {
   state: any;
   onAction: (type: string, data: any) => void;
   selectedLokasi: string;
+  currentUser?: any;
+  attendanceLogs?: any[];
 }
 
 const calculateMinuteDiff = (start: string, end: string): number => {
@@ -44,8 +49,52 @@ const calculateMinuteDiff = (start: string, end: string): number => {
   }
 };
 
-export default function SidebarForms({ state, onAction, selectedLokasi }: SidebarFormsProps) {
+export default function SidebarForms({ state, onAction, selectedLokasi, currentUser, attendanceLogs }: SidebarFormsProps) {
   const [activeForm, setActiveForm] = useState<'penerimaan' | 'peeling' | 'freezing' | 'frying' | 'qc' | 'packaging' | 'sales' | 'pettycash'>('penerimaan');
+
+  // Permission Checker
+  const checkPermission = (allowedRoles: string[]) => {
+    if (!currentUser) return true;
+    return allowedRoles.includes(currentUser.role);
+  };
+
+  const isManagerOrAdmin = currentUser && ['Branch Manager', 'Factory Manager', 'Kepala Cabang', 'Super Admin', 'Director', 'Direktur HQ', 'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Admin', 'Branch Admin', 'HQ Admin', 'Management'].includes(currentUser.role);
+
+  // Filtered employees retrieval helper
+  const getFilteredEmployees = (roles: string[], department?: string) => {
+    let list = state.karyawan || [];
+    // Only active employees
+    list = list.filter((k: any) => k.status?.toLowerCase() === 'aktif' || k.status?.toLowerCase() === 'active');
+    // Filter by factory
+    list = list.filter((k: any) => k.lokasiId === selectedLokasi);
+    // Filter by role or department match
+    if (roles.length > 0 || department) {
+      list = list.filter((k: any) => {
+        const matchesRole = roles.length === 0 || roles.includes(k.role) || roles.includes(k.position);
+        const matchesDept = !department || k.department === department;
+        return matchesRole || matchesDept;
+      });
+    }
+    return list;
+  };
+
+  // Check attendance status for selected date (default '2026-06-03' in seed)
+  const checkAttendance = (employeeId: string) => {
+    if (!attendanceLogs) return { isPresent: true, text: 'Hadir (Presensi Bypass)' };
+    const todayStr = '2026-06-03';
+    const rec = attendanceLogs.find((r: any) => r.employeeId === employeeId && r.date === todayStr);
+    if (!rec) return { isPresent: false, text: 'Belum Presensi hari ini ⚠️' };
+    if (rec.status === 'Present' || rec.status === 'Late') return { isPresent: true, text: `Hadir (${rec.timeIn || '08:00'})` };
+    return { isPresent: false, text: `Presensi: ${rec.status} ⚠️` };
+  };
+
+  // Backdated date and time support (Feature 2)
+  const [useBackdate, setUseBackdate] = useState(false);
+  const [backdateTanggal, setBackdateTanggal] = useState(() => new Date().toISOString().split('T')[0]);
+  const [backdateJam, setBackdateJam] = useState(() => {
+    const d = new Date();
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+  });
 
   // 1. Form: Penerimaan Bahan Baku Segar
   const [rcvSupplier, setRcvSupplier] = useState(state.supplier[0]?.id || '');
@@ -61,11 +110,83 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
 
   // 2. Form: Pengupasan (Peeling)
   const [pelEmployee, setPelEmployee] = useState(state.karyawan.find((k: any) => k.role === 'Kupas')?.id || '');
+  const [pelEmployees, setPelEmployees] = useState<string[]>([]);
   const [pelBahan, setPelBahan] = useState('Apel Segar');
   const [pelInputWeight, setPelInputWeight] = useState(100);
   const [pelOutputWeight, setPelOutputWeight] = useState(61);
   const [pelRejectWeight, setPelRejectWeight] = useState(4);
   const [pelHours, setPelHours] = useState(8);
+
+  const [fryOperators, setFryOperators] = useState<string[]>([]);
+  const [packEmployees, setPackEmployees] = useState<string[]>([]);
+
+  // Auto PIC and operator selection matching
+  useEffect(() => {
+    if (currentUser) {
+      const isManager = ['Branch Manager', 'Factory Manager', 'Kepala Cabang', 'Super Admin', 'Director', 'Direktur HQ', 'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Admin', 'Branch Admin', 'HQ Admin', 'Management'].includes(currentUser.role);
+      const userLowerName = currentUser.namaLengkap?.toLowerCase() || '';
+      const kMatch = (state.karyawan || []).find((k: any) => k.nama?.toLowerCase() === userLowerName);
+
+      if (activeForm === 'peeling') {
+        const peelingList = getFilteredEmployees([
+          'Peeling Operator', 'Peeling Worker', 'Kupas',
+          'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+        ]);
+        const finalPeelingList = peelingList.length > 0 ? peelingList : getFilteredEmployees([]);
+        
+        if (!isManager && kMatch && finalPeelingList.some(p => p.id === kMatch.id)) {
+          setPelEmployee(kMatch.id);
+          setPelEmployees([kMatch.id]);
+        } else if (finalPeelingList.length > 0) {
+          setPelEmployee(finalPeelingList[0].id);
+          setPelEmployees([finalPeelingList[0].id]);
+        }
+      }
+
+      if (activeForm === 'frying') {
+        const fryingList = getFilteredEmployees([
+          'Production Operator', 'Frying Operator', 'Frying', 'Vacuum Frying Operator',
+          'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+        ]);
+        const finalFryingList = fryingList.length > 0 ? fryingList : getFilteredEmployees([]);
+        if (!isManager && kMatch && finalFryingList.some(f => f.id === kMatch.id)) {
+          setFryOperator(kMatch.id);
+          setFryOperators([kMatch.id]);
+        } else if (finalFryingList.length > 0) {
+          setFryOperator(finalFryingList[0].id);
+          setFryOperators([finalFryingList[0].id]);
+        }
+      }
+
+      if (activeForm === 'qc') {
+        const qcList = getFilteredEmployees([
+          'QC Inspector', 'QC', 'QC Auditor', 'Auditor',
+          'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+        ]);
+        const finalQcList = qcList.length > 0 ? qcList : getFilteredEmployees([]);
+        if (!isManager && kMatch && finalQcList.some(q => q.id === kMatch.id)) {
+          setQcInspector(kMatch.id);
+        } else if (finalQcList.length > 0) {
+          setQcInspector(finalQcList[0].id);
+        }
+      }
+
+      if (activeForm === 'packaging') {
+        const packagingList = getFilteredEmployees([
+          'Packaging Operator', 'Kemas', 'Packaging Worker', 'Packaging Team',
+          'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+        ]);
+        const finalPackagingList = packagingList.length > 0 ? packagingList : getFilteredEmployees([]);
+        if (!isManager && kMatch && finalPackagingList.some(p => p.id === kMatch.id)) {
+          setPackEmployee(kMatch.id);
+          setPackEmployees([kMatch.id]);
+        } else if (finalPackagingList.length > 0) {
+          setPackEmployee(finalPackagingList[0].id);
+          setPackEmployees([finalPackagingList[0].id]);
+        }
+      }
+    }
+  }, [activeForm, currentUser, selectedLokasi, state.karyawan]);
 
   // 3. Form: Pembekuan (Freezing State)
   const [frzKupasMasuk, setFrzKupasMasuk] = useState(61);
@@ -76,6 +197,7 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
   // 4. Form: Vacuum Frying
   const [fryOperator, setFryOperator] = useState(state.karyawan.find((k: any) => k.role === 'Frying')?.id || '');
   const [fryMachine, setFryMachine] = useState(state.mesin[0]?.id || '');
+  const [fryMachineCount, setFryMachineCount] = useState(3);
   const [fryFrozenMasuk, setFryFrozenMasuk] = useState(60.2);
   const [fryOutputKeripik, setFryOutputKeripik] = useState(24.1);
   const [fryOilBefore, setFryOilBefore] = useState(380); // Liters volume minyak sebelum goreng
@@ -195,8 +317,26 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
     setTimeout(() => setSuccessMsg(''), 4000);
   };
 
+  const renderAccessDenied = (allowedRoles: string[], formLabel: string) => {
+    return (
+      <div className="bg-rose-50 border border-rose-200 p-6 rounded-xl text-center space-y-3 font-sans my-4" id="access-denied-block flex flex-col items-center justify-center">
+        <div className="mx-auto w-12 h-12 rounded-full bg-rose-100 flex items-center justify-center">
+          <AlertOctagon className="w-6 h-6 text-rose-600 animate-pulse" />
+        </div>
+        <h4 className="font-bold text-slate-800 text-sm">Akses Terbatas</h4>
+        <p className="text-slate-500 text-xs leading-normal">
+          Pengguna <strong>{currentUser?.namaLengkap || currentUser?.username || 'Guest'}</strong> ({currentUser?.role || 'No Role'}) tidak memiliki izin untuk menginput data pada sub-menu <strong>{formLabel}</strong>.
+        </p>
+        <div className="bg-white border rounded p-2 text-[10px] text-slate-600 inline-block font-semibold">
+          Peran Diizinkan: {allowedRoles.filter(r => !['Super Admin', 'Director', 'Management'].includes(r)).join(', ')}
+        </div>
+      </div>
+    );
+  };
+
   const handlePenerimaanSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('PENERIMAAN', {
       supplierId: rcvSupplier,
       jenisBahan: rcvBahan,
@@ -207,40 +347,56 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
       picPenerima: rcvPic,
       notaUrl: rcvNotaUrl,
       fotoBarangUrl: rcvFotoUrl,
-      keteranganTambahan: rcvNotes
+      keteranganTambahan: rcvNotes,
+      ...backdatePayload
     });
     renderSuccess(`Sukses menerima ${rcvWeight} kg ${rcvBahan} dari supplier! PIC: ${rcvPic}. Stok bertambah.`);
   };
 
   const handlePeelingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (pelEmployees.length === 0) {
+      alert("Gagal menyimpan! Silakan pilih setidaknya satu Karyawan Kupas.");
+      return;
+    }
+    const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('PEELING', {
-      karyawanId: pelEmployee,
+      karyawanIds: pelEmployees,
+      karyawanId: pelEmployees[0], // backward compatibility
       bahanMasukKg: pelInputWeight,
       hasilKupasKg: pelOutputWeight,
       rejectKg: pelRejectWeight,
       jamKerja: pelHours,
-      jenisBahan: pelBahan
+      jenisBahan: pelBahan,
+      ...backdatePayload
     });
-    renderSuccess(`Sukses input pengupasan ${pelOutputWeight}kg oleh karyawan. Stok kupasan WIP bertambah dan gaji borongan terhitung!`);
+    renderSuccess(`Sukses mengajukan pengupasan ${pelOutputWeight}kg oleh ${pelEmployees.length} karyawan! Menunggu approval Manajer sebelum mempengaruhi stok.`);
   };
 
   const handleFreezingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('FREEZING', {
       beratKupasMasuk: frzKupasMasuk,
       pic: frzPic,
       fruitType: frzFruitType,
-      shift: frzShift
+      shift: frzShift,
+      ...backdatePayload
     });
     renderSuccess(`Sukses pembekuan ${frzKupasMasuk} kg ${frzFruitType} oleh ${frzPic} (Shift: ${frzShift}).`);
   };
 
   const handleFryingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (fryOperators.length === 0) {
+      alert("Gagal menyimpan! Silakan pilih setidaknya satu Operator Frying.");
+      return;
+    }
     const autoDuration = calculateMinuteDiff(fryStart, fryLift);
+    const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('FRYING', {
-      operatorId: fryOperator,
+      operatorId: fryOperators[0],
+      karyawanIds: fryOperators,
       mesinId: fryMachine,
       beratFrozenMasukKg: fryFrozenMasuk,
       beratHasilKeripikKg: fryOutputKeripik,
@@ -256,13 +412,17 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
       jamPenirisan: fryDrain,
       jamAngkat: fryLift,
       waktuPembersihan: fryCleanupMins,
-      jenisBuah: fryFruitType
+      jenisBuah: fryFruitType,
+      vacuumFryingMachines: parseInt(String(fryMachineCount || 1)),
+      vacuumFryingCapacity: parseFloat(String(fryFrozenMasuk || 0)),
+      ...backdatePayload
     });
-    renderSuccess(`Vacuum Frying sukses! Menghasilkan ${fryOutputKeripik} kg keripik siap QC. Total durasi goreng otomatis ${autoDuration} menit.`);
+    renderSuccess(`Vacuum Frying diajukan! ${fryOutputKeripik} kg keripik siap QC oleh ${fryOperators.length} operator. Menunggu approval manajer sebelum mempengaruhi stok.`);
   };
 
   const handleQCSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('QC', {
       qcId: qcInspector,
       beratMasukKg: qcWeightInput,
@@ -272,13 +432,18 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
       rejectKg: qcReject,
       alasanReject: qcReason,
       jenisVarianBuah: qcFruitVariant,
-      hasilLolosQcKg: qcPassedWeight
+      hasilLolosQcKg: qcPassedWeight,
+      ...backdatePayload
     });
-    renderSuccess(`Inspeksi QC selesai! ${qcPassedWeight} kg keripik ${qcFruitVariant} lolos QC & dinaikkan ke Gudang.`);
+    renderSuccess(`Inspeksi QC diajukan! ${qcPassedWeight} kg keripik ${qcFruitVariant} didaftarkan. Menunggu approval manajer sebelum masuk stok.`);
   };
 
   const handlePackagingSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (packEmployees.length === 0) {
+      alert("Gagal menyimpan! Silakan pilih setidaknya satu Pekerja Kemas.");
+      return;
+    }
     if (packIsMixed) {
       const totalPct = packCompList.reduce((sum, item) => sum + (item.percentage || 0), 0);
       if (totalPct !== 100) {
@@ -293,8 +458,10 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
       }
     }
 
+    const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('PACKAGING', {
-      karyawanId: packEmployee,
+      karyawanId: packEmployees[0],
+      karyawanIds: packEmployees,
       produkId: packSku,
       beratMasukKeripikKg: packKeripikInput,
       beratTerkemasKg: packTerkemasKg,
@@ -305,31 +472,36 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
       qtyKardus: packQtyKardus,
       qtyLakban: packQtyLakban,
       qtyKemasanBrand: packQtyBrandPouch,
-      jamKerja: packHours
+      jamKerja: packHours,
+      ...backdatePayload
     });
-    renderSuccess(`Pengemasan selesai! Memasukkan ${packPcs} pcs ke stok produk jadi.`);
+    renderSuccess(`Hasil pengemasan diajukan! ${packPcs} pcs diajukan oleh ${packEmployees.length} karyawan. Menunggu approval manajer sebelum mempengaruhi stok.`);
   };
 
   const handleSalesSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('SALES', {
       customerId: salCust,
       produkId: salSku,
       batchId: salBatch,
       qtyPcs: salQty,
-      hargaSatuan: salPrice
+      hargaSatuan: salPrice,
+      ...backdatePayload
     });
     renderSuccess(`Invoice penjualan terinput! Surat Jalan terbit secara digital & sisa stok produk jadi berkurang.`);
   };
 
   const handlePettyCashSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('PETTYCASH', {
       kategori: cashCategory,
       deskripsi: cashDesc || `Pengeluaran ${cashCategory}`,
       tipe: cashType,
       jumlah: cashAmount,
-      masukHPP: cashHppFlag
+      masukHPP: cashHppFlag,
+      ...backdatePayload
     });
     renderSuccess(`Jurnal petty cash Rp ${cashAmount.toLocaleString('id-ID')} tersimpan!`);
     setCashDesc('');
@@ -355,6 +527,41 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
           <span>{successMsg}</span>
         </div>
       )}
+
+      {/* Backdating Controller Card */}
+      <div className="bg-slate-50 border border-slate-200 p-3 rounded-lg mb-4 flex flex-col gap-2 font-sans select-none">
+        <label className="flex items-center gap-2 font-bold text-slate-800 cursor-pointer">
+          <input 
+            type="checkbox" 
+            checked={useBackdate} 
+            onChange={(e) => setUseBackdate(e.target.checked)} 
+            className="w-4 h-4 text-emerald-600 border-slate-300 rounded cursor-pointer"
+          />
+          🕒 Tentukan Tanggal & Jam (Backdated Setup)
+        </label>
+        {useBackdate && (
+          <div className="grid grid-cols-2 gap-3 mt-1 text-[11px] font-medium text-slate-705">
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Tanggal</span>
+              <input 
+                type="date" 
+                value={backdateTanggal} 
+                onChange={(e) => setBackdateTanggal(e.target.value)} 
+                className="bg-white border rounded p-1.5 w-full font-mono font-bold text-slate-900"
+              />
+            </div>
+            <div>
+              <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">Jam</span>
+              <input 
+                type="time" 
+                value={backdateJam} 
+                onChange={(e) => setBackdateJam(e.target.value)} 
+                className="bg-white border rounded p-1.5 w-full font-mono font-bold text-slate-900"
+              />
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* ================= FORM: PENERIMAAN ================= */}
       {activeForm === 'penerimaan' && (
@@ -469,19 +676,65 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
 
       {/* ================= FORM: PEELING ================= */}
       {activeForm === 'peeling' && (
-        <form onSubmit={handlePeelingSubmit} className="space-y-4 text-xs" id="form-peeling-payload">
-          <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-            <Scale className="w-4 h-4 text-amber-600" /> Pengupasan Kupas kulit per Pekerja Borongan
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        !checkPermission(['Peeling Operator', 'Peeling Worker', 'Kupas', 'Branch Manager', 'Factory Manager', 'Kepala Cabang', 'Super Admin', 'Director', 'Direktur HQ', 'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Admin', 'Branch Admin', 'HQ Admin', 'Management']) ? (
+          renderAccessDenied(['Peeling Operator', 'Karyawan Kupas', 'Manajer'], 'Kupas')
+        ) : (
+          <form onSubmit={handlePeelingSubmit} className="space-y-4 text-xs" id="form-peeling-payload">
+            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+              <Scale className="w-4 h-4 text-amber-600" /> Pengupasan Kupas kulit per Pekerja Borongan
+            </h4>
+            
+            {/* Multi-Employee Selector */}
             <div>
-              <label className="font-semibold text-slate-700 block mb-1">Karyawan Kupas</label>
-              <select value={pelEmployee} onChange={(e) => setPelEmployee(e.target.value)} className="bg-slate-50 border w-full rounded p-2">
-                {state.karyawan.filter((k: any) => k.role === 'Kupas').map((k: any) => (
-                  <option key={k.id} value={k.id}>{k.nama}</option>
-                ))}
-              </select>
+              <label className="font-extrabold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">
+                Pemberdayaan Anggota Tim Kupas ({pelEmployees.length} Pekerja Terpilih)
+              </label>
+              <p className="text-slate-400 text-[10px] mb-2 leading-relaxed">
+                Centang nama-nama anggota tim yang bergabung dalam tim kupas untuk batch transaksi ini. Hanya karyawan aktif Task Force Penugasan di factory ini yang dimuat:
+              </p>
+              <div className="bg-slate-50 border rounded-lg p-2 max-h-40 overflow-y-auto space-y-1.5 shadow-inner">
+                {(() => {
+                  const availableEmployees = getFilteredEmployees([
+                    'Peeling Operator', 'Peeling Worker', 'Kupas',
+                    'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+                  ]);
+                  const finalEmployees = availableEmployees.length > 0 ? availableEmployees : getFilteredEmployees([]);
+                  
+                  return finalEmployees.map((k: any) => {
+                    const att = checkAttendance(k.id);
+                    const isChecked = pelEmployees.includes(k.id);
+                    return (
+                      <label 
+                        key={k.id} 
+                        className={`flex items-center gap-2.5 p-1.5 rounded cursor-pointer transition select-none ${
+                          isChecked ? 'bg-indigo-50 border-l-4 border-indigo-600 font-bold text-slate-900' : 'hover:bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        <input 
+                          type="checkbox" 
+                          checked={isChecked}
+                          onChange={() => {
+                            if (isChecked) {
+                              setPelEmployees(prev => prev.filter(id => id !== k.id));
+                            } else {
+                              setPelEmployees(prev => [...prev, k.id]);
+                            }
+                          }}
+                          className="rounded text-indigo-600 focus:ring-indigo-550 w-3.5 h-3.5"
+                        />
+                        <div className="flex-1 flex justify-between items-center text-[10.5px]">
+                          <span>{k.nama} <span className="text-[9px] text-slate-400 font-normal">({k.role})</span></span>
+                          <span className={`text-[9px] px-1.5 py-0.2 rounded font-bold ${att.isPresent ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                            {att.text}
+                          </span>
+                        </div>
+                      </label>
+                    );
+                  });
+                })()}
+              </div>
             </div>
+
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Bahan Baku Segar yang Digunakan</label>
               <select value={pelBahan} onChange={(e) => setPelBahan(e.target.value)} className="bg-slate-50 border w-full rounded p-2">
@@ -499,42 +752,42 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
                 )}
               </select>
             </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Bahan Masuk / Kupas (Kg)</label>
-              <input type="number" value={pelInputWeight} onChange={(e) => setPelInputWeight(Math.max(1, parseInt(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
-            </div>
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Hasil Kupasan Bersih (Kg)</label>
-              <input type="number" value={pelOutputWeight} onChange={(e) => setPelOutputWeight(Math.max(1, parseInt(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
-            </div>
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Scrap / Reject Busuk (Kg)</label>
-              <input type="number" value={pelRejectWeight} onChange={(e) => setPelRejectWeight(Math.max(0, parseInt(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Lama Jam Kerja (Jam)</label>
-              <input type="number" value={pelHours} onChange={(e) => setPelHours(Math.max(1, parseInt(e.target.value) || 0))} className="border w-full rounded p-2" />
-            </div>
-            <div className="flex items-end">
-              <div className="bg-slate-50 p-2 border border-dashed rounded w-full flex justify-between items-center text-[10px]">
-                <span className="text-slate-500">Estimasi Rendemen Yield:</span>
-                <span className="font-black text-slate-900 border px-1 bg-white rounded font-mono">
-                  {pelInputWeight > 0 ? ((pelOutputWeight / pelInputWeight) * 100).toFixed(1) : 0}%
-                </span>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Bahan Masuk / Kupas (Kg)</label>
+                <input type="number" value={pelInputWeight} onChange={(e) => setPelInputWeight(Math.max(1, parseInt(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Hasil Kupasan Bersih (Kg)</label>
+                <input type="number" value={pelOutputWeight} onChange={(e) => setPelOutputWeight(Math.max(1, parseInt(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Scrap / Reject Busuk (Kg)</label>
+                <input type="number" value={pelRejectWeight} onChange={(e) => setPelRejectWeight(Math.max(0, parseInt(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
               </div>
             </div>
-          </div>
 
-          <button type="submit" id="submit-peeling-btn" className="w-full bg-slate-950 text-white font-bold py-2 rounded shadow hover:bg-slate-800 transition">
-            Simpan Hasil Kupasan & Kurangi Stok Segar
-          </button>
-        </form>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Lama Jam Kerja (Jam)</label>
+                <input type="number" value={pelHours} onChange={(e) => setPelHours(Math.max(1, parseInt(e.target.value) || 0))} className="border w-full rounded p-2" />
+              </div>
+              <div className="flex items-end">
+                <div className="bg-slate-50 p-2 border border-dashed rounded w-full flex justify-between items-center text-[10px]">
+                  <span className="text-slate-500">Estimasi Rendemen Yield:</span>
+                  <span className="font-black text-slate-900 border px-1 bg-white rounded font-mono">
+                    {pelInputWeight > 0 ? ((pelOutputWeight / pelInputWeight) * 100).toFixed(1) : 0}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <button type="submit" id="submit-peeling-btn" className="w-full bg-slate-950 text-white font-bold py-2 rounded shadow hover:bg-slate-800 transition">
+              Simpan Hasil Kupasan & Kirim Form Pengupasan (Butuh Approval)
+            </button>
+          </form>
+        )
       )}
 
       {/* ================= FORM: FREEZING ================= */}
@@ -593,19 +846,71 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
 
       {/* ================= FORM: FRYING ================= */}
       {activeForm === 'frying' && (
-        <form onSubmit={handleFryingSubmit} className="space-y-4 text-xs" id="form-frying-payload">
-          <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-            <Flame className="w-4 h-4 text-rose-500 animate-pulse" /> Vacuum Frying Machine Entry Logs
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Operator Frying</label>
-              <select value={fryOperator} onChange={(e) => setFryOperator(e.target.value)} className="bg-slate-50 border w-full rounded p-2">
-                {state.karyawan.filter((k: any) => k.role === 'Frying').map((k: any) => (
-                  <option key={k.id} value={k.id}>{k.nama}</option>
-                ))}
-              </select>
-            </div>
+        !checkPermission(['Frying Operator', 'Production Operator', 'Frying', 'Vacuum Frying Operator', 'Branch Manager', 'Factory Manager', 'Kepala Cabang', 'Super Admin', 'Director', 'Direktur HQ', 'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Admin', 'Branch Admin', 'HQ Admin', 'Management']) ? (
+          renderAccessDenied(['Frying Operator', 'Operator Frying', 'Manajer'], 'Vacuum Frying')
+        ) : (
+          <form onSubmit={handleFryingSubmit} className="space-y-4 text-xs" id="form-frying-payload">
+            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+              <Flame className="w-4 h-4 text-rose-500 animate-pulse" /> Vacuum Frying Machine Entry Logs
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="md:col-span-2">
+                <label className="font-extrabold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">
+                  Operator Vacuum Frying ({fryOperators.length} Orang Terpilih)
+                </label>
+                <div className="bg-slate-50 border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 shadow-inner">
+                  {(() => {
+                    const availablePeople = getFilteredEmployees([
+                      'Production Operator', 'Frying Operator', 'Frying', 'Vacuum Frying Operator',
+                      'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+                    ]);
+                    const finalPeople = availablePeople.length > 0 ? availablePeople : getFilteredEmployees([]);
+                    return finalPeople.map((k: any) => {
+                      const att = checkAttendance(k.id);
+                      const isChecked = fryOperators.includes(k.id);
+                      return (
+                        <label 
+                          key={k.id} 
+                          className={`flex items-center gap-2 p-1 rounded cursor-pointer transition select-none ${
+                            isChecked ? 'bg-indigo-50 border-l-4 border-indigo-600 font-bold text-slate-900' : 'hover:bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setFryOperators(prev => prev.filter(id => id !== k.id));
+                              } else {
+                                setFryOperators(prev => [...prev, k.id]);
+                              }
+                            }}
+                            className="rounded text-indigo-600 focus:ring-indigo-500 w-3 h-3"
+                          />
+                          <div className="flex-1 flex justify-between items-center text-[10px]">
+                            <span>{k.nama}</span>
+                            <span className={`text-[8px] px-1 py-0.2 rounded font-bold ${att.isPresent ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {att.text}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Jumlah Mesin Vacuum Frying (Unit)</label>
+                <input 
+                  type="number" 
+                  value={fryMachineCount} 
+                  onChange={(e) => setFryMachineCount(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="bg-white border rounded p-2.5 w-full font-bold text-slate-800 text-[11px]"
+                  min="1"
+                  required
+                />
+              </div>
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Mesin Vacuum Frying</label>
               <select value={fryMachine} onChange={(e) => setFryMachine(e.target.value)} className="bg-slate-50 border w-full rounded p-2">
@@ -713,27 +1018,60 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
             Simpan Vacuum Frying & Update Inventori Penolong
           </button>
         </form>
-      )}
+      )
+    )}
 
       {/* ================= FORM: QC ================= */}
       {activeForm === 'qc' && (
-        <form onSubmit={handleQCSubmit} className="space-y-4 text-xs" id="form-qc-payload">
-          <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-            <Award className="w-4 h-4 text-emerald-600" /> Quality Control Inspection & Grading
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Pemeriksa (QC Inspector)</label>
-              <select value={qcInspector} onChange={(e) => setQcInspector(e.target.value)} className="bg-slate-50 border w-full rounded p-2">
-                <option value="U-05">Dian Sastro (Batu QA)</option>
-                <option value="U-01">Richard P. (HQ Auditor)</option>
-              </select>
+        !checkPermission(['QC Inspector', 'QC', 'QC Auditor', 'Auditor', 'Branch Manager', 'Factory Manager', 'Kepala Cabang', 'Super Admin', 'Director', 'Direktur HQ', 'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Admin', 'Branch Admin', 'HQ Admin', 'Management']) ? (
+          renderAccessDenied(['QC Inspector', 'Quality Control Inspector', 'Manajer'], 'QA Grading')
+        ) : (
+          <form onSubmit={handleQCSubmit} className="space-y-4 text-xs" id="form-qc-payload">
+            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+              <Award className="w-4 h-4 text-emerald-600" /> Quality Control Inspection & Grading
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Pemeriksa (QC Inspector)</label>
+                <select
+                  value={qcInspector}
+                  onChange={(e) => setQcInspector(e.target.value)}
+                  className="bg-slate-50 border w-full rounded p-2.5 font-bold text-slate-800 select-qc-pemeriksa"
+                >
+                  {getFilteredEmployees([
+                    'QC Inspector', 'QC', 'QC Auditor', 'Auditor',
+                    'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+                  ]).length === 0 ? (
+                    getFilteredEmployees([]).map((k: any) => (
+                      <option key={k.id} value={k.id}>
+                        {k.nama} ({k.role})
+                      </option>
+                    ))
+                  ) : (
+                    getFilteredEmployees([
+                      'QC Inspector', 'QC', 'QC Auditor', 'Auditor',
+                      'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+                    ]).map((k: any) => {
+                      const att = checkAttendance(k.id);
+                      return (
+                        <option key={k.id} value={k.id}>
+                          {k.nama} ({k.role}) - {att.text}
+                        </option>
+                      );
+                    })
+                  )}
+                </select>
+                {qcInspector && !checkAttendance(qcInspector).isPresent && (
+                  <p className="text-[9px] text-amber-500 mt-1 font-semibold">
+                    ⚠️ Inspector belum absen kerja hari ini.
+                  </p>
+                )}
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Keripik Frying Masuk QC (Kg)</label>
+                <input type="number" value={qcWeightInput} onChange={(e) => setQcWeightInput(Math.max(1, parseFloat(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
+              </div>
             </div>
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Keripik Frying Masuk QC (Kg)</label>
-              <input type="number" value={qcWeightInput} onChange={(e) => setQcWeightInput(Math.max(1, parseFloat(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
-            </div>
-          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -786,36 +1124,77 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
             <input type="text" value={qcReason} onChange={(e) => setQcReason(e.target.value)} className="border w-full rounded p-2" placeholder="gosong di ujung, lembek, packing pecah" />
           </div>
 
-          <button type="submit" id="submit-qc-btn" className="w-full bg-slate-950 text-white font-bold py-2 rounded shadow hover:bg-slate-800 transition">
-            Simpan Hasil Grading QC & Naikkan ke Gudang
-          </button>
-        </form>
+            <button type="submit" id="submit-qc-btn" className="w-full bg-slate-950 text-white font-bold py-2 rounded shadow hover:bg-slate-800 transition">
+              Simpan Hasil Grading QC & Naikkan ke Gudang
+            </button>
+          </form>
+        )
       )}
 
       {/* ================= FORM: PACKAGING ================= */}
       {activeForm === 'packaging' && (
-        <form onSubmit={handlePackagingSubmit} className="space-y-4 text-xs" id="form-packaging-payload">
-          <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
-            <Plus className="w-4 h-4 text-purple-600" /> Pengemasan Kemasan per Brand & Varian SKU
-          </h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Karyawan Packer</label>
-              <select value={packEmployee} onChange={(e) => setPackEmployee(e.target.value)} className="bg-slate-50 border w-full rounded p-2">
-                {state.karyawan.filter((k: any) => k.role === 'Kemas').map((k: any) => (
-                  <option key={k.id} value={k.id}>{k.nama}</option>
-                ))}
-              </select>
+        !checkPermission(['Packaging Operator', 'Packaging Team', 'Kemas', 'Packaging Worker', 'Branch Manager', 'Factory Manager', 'Kepala Cabang', 'Super Admin', 'Director', 'Direktur HQ', 'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Admin', 'Branch Admin', 'HQ Admin', 'Management']) ? (
+          renderAccessDenied(['Packaging Operator', 'Karyawan Kemas', 'Manajer'], 'Kemas Brand')
+        ) : (
+          <form onSubmit={handlePackagingSubmit} className="space-y-4 text-xs" id="form-packaging-payload">
+            <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+              <Plus className="w-4 h-4 text-purple-600" /> Pengemasan Kemasan per Brand & Varian SKU
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="font-extrabold text-slate-700 block mb-1 uppercase tracking-wider text-[10px]">
+                  Karyawan Packer ({packEmployees.length} Orang Terpilih)
+                </label>
+                <div className="bg-slate-50 border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 shadow-inner">
+                  {(() => {
+                    const availablePeople = getFilteredEmployees([
+                      'Packaging Operator', 'Kemas', 'Packaging Worker', 'Packaging Team',
+                      'Kepala Pabrik HQ', 'Kepala Pabrik Cabang', 'Factory Manager', 'Kepala Cabang', 'Branch Manager'
+                    ]);
+                    const finalPeople = availablePeople.length > 0 ? availablePeople : getFilteredEmployees([]);
+                    return finalPeople.map((k: any) => {
+                      const att = checkAttendance(k.id);
+                      const isChecked = packEmployees.includes(k.id);
+                      return (
+                        <label 
+                          key={k.id} 
+                          className={`flex items-center gap-2 p-1 rounded cursor-pointer transition select-none ${
+                            isChecked ? 'bg-indigo-50 border-l-4 border-indigo-600 font-bold text-slate-900' : 'hover:bg-slate-100 text-slate-600'
+                          }`}
+                        >
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked}
+                            onChange={() => {
+                              if (isChecked) {
+                                setPackEmployees(prev => prev.filter(id => id !== k.id));
+                              } else {
+                                setPackEmployees(prev => [...prev, k.id]);
+                              }
+                            }}
+                            className="rounded text-indigo-600 focus:ring-indigo-500 w-3 h-3"
+                          />
+                          <div className="flex-1 flex justify-between items-center text-[10px]">
+                            <span>{k.nama}</span>
+                            <span className={`text-[8px] px-1 py-0.2 rounded font-bold ${att.isPresent ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                              {att.text}
+                            </span>
+                          </div>
+                        </label>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+              <div>
+                <label className="font-semibold text-slate-700 block mb-1">Target SKU Produk</label>
+                <select value={packSku} onChange={(e) => setPackSku(e.target.value)} className="bg-slate-50 border w-full rounded p-2">
+                  {state.produk.map((p: any) => (
+                    <option key={p.id} value={p.id}>{p.nama}</option>
+                  ))}
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="font-semibold text-slate-700 block mb-1">Target SKU Produk</label>
-              <select value={packSku} onChange={(e) => setPackSku(e.target.value)} className="bg-slate-50 border w-full rounded p-2">
-                {state.produk.map((p: any) => (
-                  <option key={p.id} value={p.id}>{p.nama}</option>
-                ))}
-              </select>
-            </div>
-          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div>
@@ -986,7 +1365,8 @@ export default function SidebarForms({ state, onAction, selectedLokasi }: Sideba
             Simpan Hasil Kemas & Naikkan Stok Produk Jadi
           </button>
         </form>
-      )}
+      )
+    )}
 
       {/* ================= FORM: SALES ================= */}
       {activeForm === 'sales' && (

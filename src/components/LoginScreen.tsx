@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { LogIn, UserPlus, Factory, AlertCircle, CheckCircle, Shield } from 'lucide-react';
+import { LogIn, UserPlus, Factory, AlertCircle, CheckCircle, Shield, Lock, Key } from 'lucide-react';
 
 interface LoginScreenProps {
   users: any[];
@@ -40,6 +40,12 @@ export default function LoginScreen({
   const [password, setPassword] = useState('');
   const [signInError, setSignInError] = useState('');
 
+  // Forced password change states
+  const [forcingUser, setForcingUser] = useState<any | null>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   // Sign Up inputs
   const [signUpModel, setSignUpModel] = useState({
     fullName: '',
@@ -52,6 +58,57 @@ export default function LoginScreen({
   });
   const [signUpSuccess, setSignUpSuccess] = useState(false);
   const [signUpError, setSignUpError] = useState('');
+
+  const validatePassword = (pwd: string) => {
+    if (pwd.length < 8) return 'Password minimal 8 karakter.';
+    if (!/[A-Z]/.test(pwd)) return 'Password harus memiliki minimal 1 huruf besar (uppercase).';
+    if (!/[a-z]/.test(pwd)) return 'Password harus memiliki minimal 1 huruf kecil (lowercase).';
+    if (!/[0-9]/.test(pwd)) return 'Password harus memiliki minimal 1 angka.';
+    return null;
+  };
+
+  const handleChangePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setSignInError('');
+
+    if (!forcingUser) return;
+
+    // verify current password
+    const storedHash = forcingUser.passwordHash || forcingUser.passHash || simpleHash(forcingUser.pass || 'pabrik123');
+    const enteredCurrentHash = simpleHash(currentPassword);
+    if (storedHash !== enteredCurrentHash) {
+      setSignInError('Password saat ini salah.');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setSignInError('Konfirmasi password baru tidak cocok.');
+      return;
+    }
+
+    const validationMsg = validatePassword(newPassword);
+    if (validationMsg) {
+      setSignInError(validationMsg);
+      return;
+    }
+
+    // Success! Update password in users state
+    const updatedUser = {
+      ...forcingUser,
+      passwordHash: simpleHash(newPassword),
+      needsPasswordChange: false,
+    };
+    delete updatedUser.pass; // remove raw password
+
+    setUsers(prev => prev.map(u => u.username.toLowerCase() === forcingUser.username.toLowerCase() ? updatedUser : u));
+    
+    // Reset state & log in
+    setForcingUser(null);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    onLogin(updatedUser);
+  };
 
   const handleSignIn = (e: React.FormEvent) => {
     e.preventDefault();
@@ -151,33 +208,118 @@ export default function LoginScreen({
           <p className="text-xs text-slate-400 font-medium">Enterprise Resource Planning &amp; Chips Tracing App</p>
         </div>
 
-        {/* Tab Controls */}
-        <div className="flex border-b border-slate-800" id="login-tabs">
-          <button
-            onClick={() => { setActiveTab('signin'); setSignInError(''); }}
-            className={`flex-1 pb-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 text-center transition-all ${
-              activeTab === 'signin'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-350'
-            }`}
-          >
-            <span className="flex items-center justify-center gap-1">
-              <LogIn className="w-3.5 h-3.5" /> Masuk
-            </span>
-          </button>
-          <button
-            onClick={() => { setActiveTab('signup'); setSignUpError(''); setSignUpSuccess(false); }}
-            className={`flex-1 pb-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 text-center transition-all ${
-              activeTab === 'signup'
-                ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-500 hover:text-slate-350'
-            }`}
-          >
-            <span className="flex items-center justify-center gap-1">
-              <UserPlus className="w-3.5 h-3.5" /> Daftar Akun
-            </span>
-          </button>
-        </div>
+        {forcingUser ? (
+          <form onSubmit={handleChangePasswordSubmit} className="space-y-4 text-xs" id="force-password-change-form">
+            <div className="p-3.5 bg-amber-950/40 border border-amber-500/30 text-amber-300 rounded-xl space-y-1">
+              <div className="flex items-center gap-1.5 font-bold">
+                <Lock className="w-4 h-4 text-amber-400" />
+                First Login Force Password Change
+              </div>
+              <p className="text-[10px] leading-relaxed text-slate-400 font-medium">As a Super Admin logging in for the first time, you are strictly required to change your initial password to access the system.</p>
+            </div>
+
+            {signInError && (
+              <div className="p-3 bg-red-950/40 border border-red-500/30 text-red-400 rounded-lg flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{signInError}</span>
+              </div>
+            )}
+
+            <div className="space-y-1.5">
+              <label className="font-semibold text-slate-300 block">Current Password *</label>
+              <input
+                type="password"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+                className="bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:ring-emerald-500 rounded-lg p-2.5 w-full outline-none focus:border-emerald-500 transition-all font-sans text-xs"
+                placeholder="Enter current password (016210276)"
+                required
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-semibold text-slate-300 block">New Password *</label>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="bg-slate-900 border border-slate-800 text-white placeholder-slate-500 focus:ring-emerald-500 rounded-lg p-2.5 w-full outline-none focus:border-emerald-500 transition-all font-sans text-xs"
+                placeholder="Enter new strong password"
+                required
+              />
+              <div className="p-2.5 bg-slate-900/60 border border-slate-800/80 rounded-lg text-[10px] text-slate-400 leading-normal space-y-1">
+                <p className="font-bold text-slate-300">Requirements:</p>
+                <div className="grid grid-cols-2 gap-x-2">
+                  <div>• Minimum 8 chars</div>
+                  <div>• 1+ Uppercase (A-Z)</div>
+                  <div>• 1+ Lowercase (a-z)</div>
+                  <div>• 1+ Number (0-9)</div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="font-semibold text-slate-300 block">Confirm Password *</label>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                className="bg-slate-900 border border-slate-800 text-white placeholder-slate-550 focus:ring-emerald-500 rounded-lg p-2.5 w-full outline-none focus:border-emerald-500 transition-all font-sans text-xs"
+                placeholder="Retype new password"
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 rounded-lg transition-all shadow-md shadow-emerald-600/10 text-xs font-sans mt-2"
+            >
+              Update Password &amp; Login
+            </button>
+            
+            <button
+              type="button"
+              onClick={() => {
+                setForcingUser(null);
+                setSignInError('');
+                setCurrentPassword('');
+                setNewPassword('');
+                setConfirmPassword('');
+              }}
+              className="w-full bg-transparent hover:bg-slate-900 text-slate-400 font-semibold py-2 rounded-lg transition-all text-xs font-sans"
+            >
+              Cancel
+            </button>
+          </form>
+        ) : (
+          <>
+            {/* Tab Controls */}
+            <div className="flex border-b border-slate-800" id="login-tabs">
+              <button
+                onClick={() => { setActiveTab('signin'); setSignInError(''); }}
+                className={`flex-1 pb-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 text-center transition-all ${
+                  activeTab === 'signin'
+                    ? 'border-emerald-500 text-emerald-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-350'
+                }`}
+              >
+                <span className="flex items-center justify-center gap-1">
+                  <LogIn className="w-3.5 h-3.5" /> Masuk
+                </span>
+              </button>
+              <button
+                onClick={() => { setActiveTab('signup'); setSignUpError(''); setSignUpSuccess(false); }}
+                className={`flex-1 pb-2.5 text-xs font-semibold uppercase tracking-wider border-b-2 text-center transition-all ${
+                  activeTab === 'signup'
+                    ? 'border-emerald-500 text-emerald-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-350'
+                }`}
+              >
+                <span className="flex items-center justify-center gap-1">
+                  <UserPlus className="w-3.5 h-3.5" /> Daftar Akun
+                </span>
+              </button>
+            </div>
 
         {/* TAB 1: SIGN IN */}
         {activeTab === 'signin' && (
@@ -371,6 +513,8 @@ export default function LoginScreen({
             </button>
           </form>
         )}
+      </>
+    )}
       </div>
     </div>
   );

@@ -38,17 +38,26 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
+import BudgetActualDashboard from './BudgetActualDashboard';
+import YieldLossDashboard from './YieldLossDashboard';
+import MachineUtilizationDashboard from './MachineUtilizationDashboard';
+import ProfitabilityDashboard from './ProfitabilityDashboard';
+import StrategicControlCenter from './StrategicControlCenter';
+import { Sparkles, Cpu, Wrench } from 'lucide-react';
+
 interface DashboardsProps {
   state: any;
   selectedLokasi: string;
   onNavigate?: (menuId: string) => void;
   activeMenu?: string;
+  currentUser?: any;
+  onLogActivity?: (modul: string, msg: string) => void;
 }
 
-export default function Dashboards({ state, selectedLokasi, onNavigate, activeMenu }: DashboardsProps) {
+export default function Dashboards({ state, selectedLokasi, onNavigate, activeMenu, currentUser, onLogActivity }: DashboardsProps) {
   const activeSubTab = (activeMenu && activeMenu.startsWith('dashboard-') 
     ? activeMenu.replace('dashboard-', '') 
-    : 'utama') as 'utama' | 'produksi' | 'inventory' | 'sales' | 'payroll' | 'cogs' | 'hq';
+    : 'utama') as string;
 
   const setActiveSubTab = (tabName: string) => {
     onNavigate?.('dashboard-' + tabName);
@@ -239,6 +248,17 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
             }`}
           >
             Dashboard HQ (Multi-Branch)
+          </button>
+          <button
+            id="tab-dashboard-profitability-btn"
+            onClick={() => setActiveSubTab('profitability')}
+            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+              activeSubTab === 'profitability'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+            }`}
+          >
+            Profitability Analysis
           </button>
         </div>
         <div className="flex items-center space-x-2 text-xs font-mono bg-slate-900 text-slate-100 px-3 py-1.5 rounded-lg shadow-sm">
@@ -864,6 +884,34 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
               </div>
             </div>
           </div>
+
+          <div className="border-t border-slate-100 my-6 pt-6">
+            <StrategicControlCenter state={state} onLogActivity={onLogActivity} />
+          </div>
+        </div>
+      )}
+
+      {activeSubTab === 'budget-actual' && (
+        <div className="space-y-6">
+          <BudgetActualDashboard state={state} currentUser={currentUser} onLogActivity={onLogActivity || (() => {})} />
+        </div>
+      )}
+
+      {activeSubTab === 'yield-loss' && (
+        <div className="space-y-6">
+          <YieldLossDashboard state={state} currentUser={currentUser} onLogActivity={onLogActivity || (() => {})} />
+        </div>
+      )}
+
+      {activeSubTab === 'machine-utilization' && (
+        <div className="space-y-6">
+          <MachineUtilizationDashboard state={state} currentUser={currentUser} onLogActivity={onLogActivity || (() => {})} />
+        </div>
+      )}
+
+      {activeSubTab === 'profitability' && (
+        <div className="space-y-6">
+          <ProfitabilityDashboard state={state} selectedLokasi={selectedLokasi} />
         </div>
       )}
     </div>

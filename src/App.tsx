@@ -13,6 +13,7 @@ import {
   Award,
   PackageCheck,
   TrendingUp,
+  Activity,
   DollarSign,
   ClipboardList,
   ShieldCheck,
@@ -31,7 +32,17 @@ import {
   RefreshCw,
   Search,
   Printer,
-  ChevronLeft
+  ChevronLeft,
+  Calendar,
+  Wallet,
+  FileSpreadsheet,
+  FileText,
+  Wand2,
+  Box,
+  Shield,
+  Key,
+  AlertCircle,
+  History
 } from 'lucide-react';
 
 // Subcomponents
@@ -39,6 +50,20 @@ import Dashboards from './components/Dashboards';
 import TrackingAndCOGS from './components/TrackingAndCOGS';
 import SidebarForms from './components/SidebarForms';
 import LoginScreen from './components/LoginScreen';
+import OpeningBalanceSetup from './components/OpeningBalanceSetup';
+import TransactionRevisions from './components/TransactionRevisions';
+import ProductionPlanning from './components/ProductionPlanning';
+import ComplianceAndService from './components/ComplianceAndService';
+import AttendanceManagement from './components/AttendanceManagement';
+import ProductionApprovals from './components/ProductionApprovals';
+import PettyCashManager from './components/PettyCashManager';
+import FinanceManager from './components/FinanceManager';
+import SupplierPerformanceScorecard from './components/SupplierPerformanceScorecard';
+import AICopilot from './components/AICopilot';
+import ManagementMeetingPack from './components/ManagementMeetingPack';
+
+// Types and Interfaces
+import { AuditLog } from './types';
 
 // Seed Database
 import {
@@ -72,15 +97,24 @@ import {
   SEED_AUDIT_LOGS
 } from './initialData';
 
+const systemSimpleHash = (str: string) => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'hash_' + Math.abs(hash).toString(16);
+};
+
 export default function App() {
   // Global State
   const [lokasi, setLokasi] = useState<any[]>(SEED_LOKASI);
-  const [currentUser, setCurrentUser] = useState<any>(SEED_USERS[0]); // Default to HQ Executive (Richard P)
+  const [currentUser, setCurrentUser] = useState<any>(null); // Default to null before login
   const [selectedLokasi, setSelectedLokasi] = useState<string>('JKT'); // Malang HQ
   const activeBranchName = lokasi.find(l => l.id === selectedLokasi)?.nama || 'Semua Cabang';
 
   // Authentication & Dynamic RBAC States
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(true); // Starts logged in for seamless review helper
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false); // Always redirect to login page initially
   
   const [rolePermissions, setRolePermissions] = useState<{[key: string]: string[]}>({
     'Super Admin': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
@@ -89,6 +123,8 @@ export default function App() {
     'Director': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
     'HQ Admin': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
     'HQ Production': ['dashboard', 'master', 'produksi', 'inventory', 'quality', 'maintenance'],
+    'HQ Production Manager': ['dashboard', 'master', 'produksi', 'inventory', 'quality', 'maintenance'],
+    'HQ Management': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
     'HQ Finance': ['dashboard', 'cogs', 'payroll', 'finance'],
     'Finance HQ': ['dashboard', 'cogs', 'payroll', 'finance'],
     'Finance': ['dashboard', 'cogs', 'payroll', 'finance'],
@@ -153,11 +189,63 @@ export default function App() {
   });
 
   const [users, setUsers] = useState<any[]>(() => {
-    // Inject a hashed password mapping on seed users if not already present
-    return SEED_USERS.map(u => ({
+    const saved = localStorage.getItem('agridea_users');
+    let loadedUsers: any[] = [];
+    if (saved) {
+      try {
+        loadedUsers = JSON.parse(saved);
+      } catch (e) {
+        loadedUsers = [];
+      }
+    }
+
+    // Convert 'superadmin' to 'Super Admin' role cleanly on load if any
+    loadedUsers = loadedUsers.map(u => ({
       ...u,
-      passwordHash: u.passwordHash || 'hash_1184cbb' // prehashed 'pabrik123'
+      role: u.role === 'superadmin' ? 'Super Admin' : u.role
     }));
+
+    // IF database/users count is empty (count = 0)
+    if (loadedUsers.length === 0) {
+      const defaultAdmin = {
+        id: 'U-00',
+        username: 'richardopeu',
+        role: 'Super Admin' as any,
+        lokasiId: 'JKT',
+        status: 'active' as any,
+        namaLengkap: 'Richardo Utoyo',
+        passwordHash: systemSimpleHash('016210276'),
+        needsPasswordChange: true
+      };
+
+      const rest = SEED_USERS.map(u => ({
+        ...u,
+        passwordHash: u.passwordHash || ((u as any).pass ? systemSimpleHash((u as any).pass) : systemSimpleHash('pabrik123'))
+      })).filter(u => u.username !== 'richardopeu');
+
+      const initialized = [defaultAdmin, ...rest];
+      localStorage.setItem('agridea_users', JSON.stringify(initialized));
+      return initialized;
+    }
+
+    // Explicitly guarantee richardopeu exists in database
+    const hasRichard = loadedUsers.some(u => u.username.toLowerCase() === 'richardopeu');
+    if (!hasRichard) {
+      const defaultAdmin = {
+        id: 'U-00',
+        username: 'richardopeu',
+        role: 'Super Admin' as any,
+        lokasiId: 'JKT',
+        status: 'active' as any,
+        namaLengkap: 'Richardo Utoyo',
+        passwordHash: systemSimpleHash('016210276'),
+        needsPasswordChange: true
+      };
+      loadedUsers.unshift(defaultAdmin);
+      localStorage.setItem('agridea_users', JSON.stringify(loadedUsers));
+    }
+
+    return loadedUsers;
   });
   const [pendingUsers, setPendingUsers] = useState<any[]>(SEED_PENDING_USERS);
   const [karyawan, setKaryawan] = useState<any[]>(SEED_KARYAWAN);
@@ -191,7 +279,23 @@ export default function App() {
   const [fryingLogs, setFryingLogs] = useState<any[]>(SEED_VACUUM_FRYING_LOGS);
   const [qcLogs, setQcLogs] = useState<any[]>(SEED_QC_LOGS);
   const [packingLogs, setPackingLogs] = useState<any[]>(SEED_PENGEMASAN_LOGS);
-  const [stocks, setStocks] = useState<any[]>(INITIAL_STOCKS);
+  const [openingInventory, setOpeningInventory] = useState<any[]>(() => {
+    const raw = localStorage.getItem('agridea_opening_inventory');
+    return raw ? JSON.parse(raw) : [];
+  });
+  const [openingProduction, setOpeningProduction] = useState<any[]>(() => {
+    const raw = localStorage.getItem('agridea_opening_production');
+    return raw ? JSON.parse(raw) : [];
+  });
+  const [openingFinancial, setOpeningFinancial] = useState<any[]>(() => {
+    const raw = localStorage.getItem('agridea_opening_financial');
+    return raw ? JSON.parse(raw) : [];
+  });
+
+  const [stocks, setStocks] = useState<any[]>(() => {
+    const raw = localStorage.getItem('agridea_stocks');
+    return raw ? JSON.parse(raw) : INITIAL_STOCKS;
+  });
   const [stockOpname, setStockOpname] = useState<any[]>(SEED_STOCK_OPNAME);
   const [pettyCash, setPettyCash] = useState<any[]>(SEED_PETTY_CASH);
   const [sales, setSales] = useState<any[]>(SEED_PENJUALAN);
@@ -201,26 +305,346 @@ export default function App() {
   const [notifications, setNotifications] = useState<any[]>(SEED_NOTIFIKASI);
   const [auditLogs, setAuditLogs] = useState<any[]>(SEED_AUDIT_LOGS);
 
+  // States for password change security controls on first login
+  const [showFirstLoginPopup, setShowFirstLoginPopup] = useState<boolean>(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState<boolean>(false);
+  const [popupDismissed, setPopupDismissed] = useState<boolean>(false);
+  const [changePasswordOld, setChangePasswordOld] = useState<string>('');
+  const [changePasswordNew, setChangePasswordNew] = useState<string>('');
+  const [changePasswordConfirm, setChangePasswordConfirm] = useState<string>('');
+  const [changePasswordError, setChangePasswordError] = useState<string>('');
+
+  // Lifted attendance logs state
+  const [attendanceLogs, setAttendanceLogs] = useState<any[]>(() => {
+    const saved = localStorage.getItem('agridea_attendance_records');
+    if (saved) return JSON.parse(saved);
+
+    const seedRecords: any[] = [];
+    const employees = SEED_KARYAWAN || [];
+    const dates = ['2026-06-01', '2026-06-02', '2026-06-03'];
+
+    dates.forEach(dt => {
+      employees.forEach((emp: any) => {
+        const hash = (emp.id.charCodeAt(emp.id.length - 1) + dt.charCodeAt(dt.length - 1)) % 15;
+        let empStatus: 'Present' | 'Late' | 'Absent' | 'Leave' = 'Present';
+        if (hash === 2) empStatus = 'Late';
+        else if (hash === 5) empStatus = 'Leave';
+        else if (hash === 11) empStatus = 'Absent';
+
+        if (empStatus === 'Absent' || empStatus === 'Leave') {
+          seedRecords.push({
+            id: `ATT-${emp.id}-${dt}`,
+            employeeId: emp.id,
+            employeeName: emp.nama,
+            role: emp.role,
+            factoryId: emp.lokasiId,
+            date: dt,
+            timeIn: '',
+            timeOut: '',
+            status: empStatus,
+            isOvertime: false,
+            overtimeHours: 0
+          });
+        } else {
+          const timeInStr = empStatus === 'Late' ? '08:45:12' : '07:54:10';
+          seedRecords.push({
+            id: `ATT-${emp.id}-${dt}`,
+            employeeId: emp.id,
+            employeeName: emp.nama,
+            role: emp.role,
+            factoryId: emp.lokasiId,
+            date: dt,
+            timeIn: timeInStr,
+            timeOut: '17:05:00',
+            status: empStatus,
+            isOvertime: hash === 3 || hash === 7,
+            overtimeHours: hash === 3 ? 2 : (hash === 7 ? 1.5 : 0)
+          });
+        }
+      });
+    });
+
+    localStorage.setItem('agridea_attendance_records', JSON.stringify(seedRecords));
+    return seedRecords;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('agridea_attendance_records', JSON.stringify(attendanceLogs));
+  }, [attendanceLogs]);
+
+  useEffect(() => {
+    localStorage.setItem('agridea_opening_inventory', JSON.stringify(openingInventory));
+  }, [openingInventory]);
+
+  useEffect(() => {
+    localStorage.setItem('agridea_opening_production', JSON.stringify(openingProduction));
+  }, [openingProduction]);
+
+  useEffect(() => {
+    localStorage.setItem('agridea_opening_financial', JSON.stringify(openingFinancial));
+  }, [openingFinancial]);
+
+  useEffect(() => {
+    localStorage.setItem('agridea_stocks', JSON.stringify(stocks));
+  }, [stocks]);
+
+  useEffect(() => {
+    recalculateAll();
+  }, [penerimaan, peelingLogs, freezingLogs, fryingLogs, qcLogs, packingLogs, sales, openingInventory, pettyCash]);
+
   // Helper activity logger
-  const logActivity = (modul: string, msg: string) => {
-    const newLog = {
+  const logActivity = (
+    modul: string, 
+    msg: string, 
+    action?: string, 
+    oldValue?: any, 
+    newValue?: any, 
+    reason?: string
+  ) => {
+    const rawOld = oldValue ? (typeof oldValue === 'object' ? JSON.stringify(oldValue) : String(oldValue)) : '';
+    const rawNew = newValue ? (typeof newValue === 'object' ? JSON.stringify(newValue) : String(newValue)) : '';
+    
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('id-ID');
+    const timeStr = now.toLocaleTimeString('id-ID');
+    
+    const newLog: AuditLog = {
       id: 'LOG-' + (auditLogs.length + 1000 + Date.now() % 10000),
-      tanggal: new Date().toLocaleString('id-ID'),
+      tanggal: dateStr,
+      time: timeStr,
       modul,
+      userId: currentUser ? currentUser.id : 'sys',
       username: currentUser ? currentUser.username : 'system',
+      role: currentUser ? currentUser.role : 'System',
+      factory: selectedLokasi || 'HQ',
+      action: action || 'Create',
+      oldValue: rawOld,
+      newValue: rawNew,
+      reason: reason || '',
       deskripsi: msg
     };
     setAuditLogs(prev => [newLog, ...prev]);
   };
 
-  const simpleHash = (str: string) => {
-    let hash = 0;
-    for (let i = 0; i < str.length; i++) {
-      hash = (hash << 5) - hash + str.charCodeAt(i);
-      hash |= 0;
-    }
-    return 'hash_' + Math.abs(hash).toString(16);
+  // Feature 7 / Feature 2 / Feature 6 Central Recalculation Engine
+  const recalculateAll = () => {
+    let recalculatedStocks = [...INITIAL_STOCKS];
+    
+    // Apply Opening Inventory Balance in Tab 1
+    openingInventory.forEach(op => {
+      const idx = recalculatedStocks.findIndex(s => s.key === op.variant && s.lokasiId === op.lokasiId);
+      if (idx !== -1) {
+        recalculatedStocks[idx] = { ...recalculatedStocks[idx], qty: op.qty };
+      } else {
+        recalculatedStocks.push({
+          key: op.variant,
+          kategori: op.inventoryType === 'Finished Goods' ? 'Produk Jadi' : (op.inventoryType.includes('WIP') || op.inventoryType === 'Frozen' || op.inventoryType === 'Chips') ? 'WIP' : 'Bahan Baku',
+          qty: op.qty,
+          lokasiId: op.lokasiId,
+          unit: op.inventoryType === 'Finished Goods' || op.inventoryType === 'Packaging Material' ? 'pcs' : 'kg'
+        });
+      }
+    });
+
+    const allEvents: any[] = [];
+    
+    penerimaan.filter(p => p.status !== 'Archived').forEach(p => {
+      allEvents.push({ ...p, eventType: 'penerimaan', orderDate: p.tanggal });
+    });
+    peelingLogs.filter(p => p.status !== 'Archived').forEach(p => {
+      allEvents.push({ ...p, eventType: 'peeling', orderDate: p.tanggal });
+    });
+    freezingLogs.filter(f => f.status !== 'Archived').forEach(f => {
+      allEvents.push({ ...f, eventType: 'freezing', orderDate: f.tanggal });
+    });
+    fryingLogs.filter(f => f.status !== 'Archived').forEach(f => {
+      allEvents.push({ ...f, eventType: 'frying', orderDate: f.tanggal });
+    });
+    qcLogs.filter(q => q.status !== 'Archived').forEach(q => {
+      allEvents.push({ ...q, eventType: 'qc', orderDate: q.tanggal });
+    });
+    packingLogs.filter(p => p.status !== 'Archived').forEach(p => {
+      allEvents.push({ ...p, eventType: 'packing', orderDate: p.tanggal });
+    });
+    sales.filter(s => s.status !== 'Archived').forEach(s => {
+      allEvents.push({ ...s, eventType: 'sales', orderDate: s.tanggal });
+    });
+    
+    // Sort chronologically by date
+    allEvents.sort((a,b) => new Date(a.orderDate).getTime() - new Date(b.orderDate).getTime());
+
+    allEvents.forEach(ev => {
+      const lockKey = ev.lokasiId || 'JKT';
+      
+      const adjustStockTemp = (itemKey: string, val: number, unitStr = 'kg') => {
+        const idx = recalculatedStocks.findIndex(s => s.key === itemKey && s.lokasiId === lockKey);
+        if (idx !== -1) {
+          recalculatedStocks[idx] = { 
+            ...recalculatedStocks[idx], 
+            qty: Math.max(0, recalculatedStocks[idx].qty + val) 
+          };
+        } else {
+          let kategori = 'Bahan Baku';
+          if (itemKey.includes('Kupas') || itemKey.includes('Frozen') || itemKey.includes('Unpacked') || itemKey.includes('Jadi')) {
+            kategori = 'WIP';
+          } else if (itemKey.includes('Box') || itemKey.includes('Pouch') || itemKey.includes('Minyak') || itemKey.includes('LPG')) {
+            kategori = 'Packing Material';
+          } else if (itemKey.match(/[A-Z]{3}-[A-Z]{3}-\d+/) || itemKey.startsWith('PRD-')) { 
+            kategori = 'Produk Jadi';
+          }
+          recalculatedStocks.push({
+            key: itemKey,
+            kategori,
+            qty: Math.max(0, val),
+            lokasiId: lockKey,
+            unit: unitStr
+          });
+        }
+      };
+      
+      if (ev.eventType === 'penerimaan') {
+        adjustStockTemp(ev.jenisBahan, ev.beratDiterimaKg);
+      }
+      else if (ev.eventType === 'peeling') {
+        const bahanBakuName = ev.batchId?.split('-')?.[1] === 'NGK' ? 'Nangka Segar' : 'Apel Segar';
+        const peeledName = ev.batchId?.split('-')?.[1] === 'NGK' ? 'Nangka Kupas' : 'Apel Kupas';
+        adjustStockTemp(bahanBakuName, -ev.bahanMasukKg);
+        adjustStockTemp(peeledName, ev.hasilKupasKg);
+      }
+      else if (ev.eventType === 'freezing') {
+        const peeledName = ev.batchId?.split('-')?.[1] === 'NGK' ? 'Nangka Kupas' : 'Apel Kupas';
+        const frozenName = ev.batchId?.split('-')?.[1] === 'NGK' ? 'Nangka Frozen' : 'Apel Frozen';
+        adjustStockTemp(peeledName, -ev.beratKupasMasuk);
+        adjustStockTemp(frozenName, ev.beratFrozenOutput);
+      }
+      else if (ev.eventType === 'frying') {
+        const frozenName = ev.batchId?.split('-')?.[1] === 'NGK' ? 'Nangka Frozen' : 'Apel Frozen';
+        const unpackedName = ev.batchId?.split('-')?.[1] === 'NGK' ? 'Nangka Keripik Jadi (Unpacked)' : 'Apel Keripik Jadi (Unpacked)';
+        adjustStockTemp(frozenName, -ev.beratFrozenMasukKg);
+        adjustStockTemp('Minyak Goreng Sawit (Litre)', -ev.minyakDigunakanLiter, 'liter');
+        adjustStockTemp(unpackedName, ev.beratHasilKeripikKg);
+      }
+      else if (ev.eventType === 'qc') {
+        const unpackedName = ev.batchId?.split('-')?.[1] === 'NGK' ? 'Nangka Keripik Jadi (Unpacked)' : 'Apel Keripik Jadi (Unpacked)';
+        adjustStockTemp(unpackedName, ev.hasilGradeAKg + ev.hasilGradeBKg);
+      }
+      else if (ev.eventType === 'packing') {
+        const unpackedName = ev.batchId?.split('-')?.[1] === 'NGK' ? 'Nangka Keripik Jadi (Unpacked)' : 'Apel Keripik Jadi (Unpacked)';
+        adjustStockTemp(unpackedName, -ev.beratMasukKeripikKg);
+        
+        const prodMatch = produk.find(p => p.id === ev.produkId || p.sku === ev.produkId);
+        if (prodMatch) {
+          adjustStockTemp(prodMatch.sku, ev.totalPcsDihasilkan, 'pcs');
+        }
+        adjustStockTemp('Standing Pouch 100g (Pcs)', -ev.pouchDigunakan, 'pcs');
+        adjustStockTemp('Karton Box Agridea (Pcs)', -ev.boxDigunakan, 'pcs');
+      }
+      else if (ev.eventType === 'sales') {
+        ev.items?.forEach((item: any) => {
+          const prodMatch = produk.find(p => p.id === item.produkId || p.sku === item.produkId);
+          if (prodMatch) {
+            adjustStockTemp(prodMatch.sku, -item.qtyPcs, 'pcs');
+          }
+        });
+      }
+    });
+
+    setStocks(recalculatedStocks);
   };
+
+  const handleAppChangePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangePasswordError('');
+
+    if (!currentUser) return;
+
+    const storedHash = currentUser.passwordHash || systemSimpleHash(currentUser.pass || '016210276');
+    const enteredCurrentHash = systemSimpleHash(changePasswordOld);
+    if (storedHash !== enteredCurrentHash) {
+      setChangePasswordError('Password lama salah.');
+      return;
+    }
+
+    if (changePasswordNew !== changePasswordConfirm) {
+      setChangePasswordError('Konfirmasi password baru tidak cocok.');
+      return;
+    }
+
+    if (changePasswordNew.length < 8) {
+      setChangePasswordError('Password minimal harus 8 karakter.');
+      return;
+    }
+    if (!/[A-Z]/.test(changePasswordNew)) {
+      setChangePasswordError('Password baru harus memiliki minimal 1 huruf besar (uppercase).');
+      return;
+    }
+    if (!/[a-z]/.test(changePasswordNew)) {
+      setChangePasswordError('Password baru harus memiliki minimal 1 huruf kecil (lowercase).');
+      return;
+    }
+    if (!/[0-9]/.test(changePasswordNew)) {
+      setChangePasswordError('Password baru harus memiliki minimal 1 angka.');
+      return;
+    }
+
+    const updatedUser = {
+      ...currentUser,
+      passwordHash: systemSimpleHash(changePasswordNew),
+      needsPasswordChange: false
+    };
+    if (updatedUser.pass) {
+      delete updatedUser.pass;
+    }
+
+    setUsers(prev => prev.map(u => u.username.toLowerCase() === currentUser.username.toLowerCase() ? updatedUser : u));
+    setCurrentUser(updatedUser);
+
+    setNotifications(prev => [
+      {
+        id: 'NOTIF-' + Date.now(),
+        jenisAlert: 'Sukses',
+        lokasiId: selectedLokasi,
+        pesan: 'Password berhasil diperbarui!',
+        tanggal: new Date().toLocaleDateString('id-ID'),
+        dibaca: false,
+        prioritas: 'Normal'
+      },
+      ...prev
+    ]);
+
+    logActivity('Auth', `Karyawan @${currentUser.username} (${currentUser.namaLengkap}) berhasil mengganti password.`);
+
+    setChangePasswordOld('');
+    setChangePasswordNew('');
+    setChangePasswordConfirm('');
+    setShowChangePasswordModal(false);
+    setShowFirstLoginPopup(false);
+    alert('Password berhasil diubah!');
+  };
+
+  useEffect(() => {
+    localStorage.setItem('agridea_users', JSON.stringify(users));
+  }, [users]);
+
+  // Handle showing the security alert popup on first login
+  useEffect(() => {
+    if (isLoggedIn && currentUser?.needsPasswordChange && !popupDismissed) {
+      setShowFirstLoginPopup(true);
+    } else {
+      setShowFirstLoginPopup(false);
+    }
+  }, [isLoggedIn, currentUser, popupDismissed]);
+
+  // Reset popup dismissal state when session login status changes
+  useEffect(() => {
+    if (!isLoggedIn) {
+      setPopupDismissed(false);
+      setShowFirstLoginPopup(false);
+      setShowChangePasswordModal(false);
+    }
+  }, [isLoggedIn]);
+
+  const simpleHash = systemSimpleHash;
 
   // Synchronize employee to user accounts (AUTO USER ACCOUNT GENERATION)
   useEffect(() => {
@@ -320,7 +744,110 @@ export default function App() {
   const isMenuAllowed = (role: string, menuId: string) => {
     if (role === 'Super Admin' || role === 'Kepala Pabrik HQ' || role === 'Direktur HQ' || role === 'Director') return true;
     if (menuId === 'session' || menuId === 'signup') return true;
+
+    // Custom check for Opening Balance Setup & Transaction Revisions
+    if (menuId === 'opening-balance-setup' || menuId === 'transaction-revisions') {
+      const allowedRoles = ['Super Admin', 'Finance HQ', 'Finance'];
+      return allowedRoles.includes(role);
+    }
     
+    // Custom check for compliance & service operational reporting hub
+    if (menuId === 'compliance-service') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang',
+        'Production Supervisor', 'Quality Control', 'QC', 'Operator', 'Operator Mesin', 'Kupas', 'Frying', 'Kemas'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for employee attendance & payroll geo-fencing hub
+    if (menuId === 'attendance-management') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang',
+        'Production Supervisor', 'HR & Procurement', 'HR & Procurement Manager', 'Finance HQ', 'Finance'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for production planning access
+    if (menuId === 'production-planning') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Production', 'HQ Production Manager', 'HQ Management', 'HQ Admin',
+        'Branch Manager', 'Kepala Pabrik Cabang'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for Supplier Scorecard access
+    if (menuId === 'supplier-scorecard') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Procurement', 'Branch Manager', 'Kepala Pabrik Cabang', 'Factory Manager',
+        'HR & Procurement', 'HR & Procurement Manager', 'Purchasing', 'HQ Admin'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for Management Meeting Pack access
+    if (menuId === 'management-meeting-pack') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Management', 'HQ Admin', 'Branch Manager', 'Kepala Pabrik Cabang', 'Factory Manager',
+        'Finance', 'Finance HQ', 'HQ Procurement', 'HR & Procurement', 'HR & Procurement Manager',
+        'HQ Production', 'HQ Production Manager'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for Budget vs Actual dashboard
+    if (menuId === 'dashboard-budget-actual') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang', 'Finance HQ', 'Finance'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for Profitability Analysis dashboard
+    if (menuId === 'dashboard-profitability') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang', 'Finance HQ', 'Finance'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for Yield Loss Analysis dashboard
+    if (menuId === 'dashboard-yield-loss') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Production', 'Branch Manager', 'Kepala Pabrik Cabang'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for Petty Cash Management module
+    if (menuId === 'finance-cashbook') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang',
+        'Finance HQ', 'Finance', 'Admin', 'Factory Manager', 'Kepala Pabrik'
+      ];
+      return allowedRoles.includes(role);
+    }
+
+    // Custom check for Machine Utilization dashboard
+    if (menuId === 'dashboard-machine-utilization') {
+      const allowedRoles = [
+        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
+        'HQ Production', 'Branch Manager', 'Kepala Pabrik Cabang'
+      ];
+      return allowedRoles.includes(role);
+    }
+
     // Find item to check its group
     const item = sidebarItems.find(i => i.id === menuId);
     if (!item) return true; // non-sidebar views are always accessible
@@ -357,6 +884,7 @@ export default function App() {
     finance: true,
     quality: true,
     maintenance: true,
+    administration: false,
   });
 
   // Master Data Add Modals
@@ -440,13 +968,13 @@ export default function App() {
 
   // Simulate real-time actions from forms
   const handleActionCallback = (actionType: string, payload: any) => {
-    const timestamp = new Date().toISOString().split('T')[0];
+    const timestamp = payload.tanggal || payload.transactionDate || new Date().toISOString().split('T')[0];
     const logId = 'ACT-' + Math.floor(Math.random() * 10000);
     const textBatchId = 'BATCH-APL-003'; // Ongoing frying/peeling apple batch
 
     // Log the audit trial
     setAuditLogs(prev => [
-      { id: 'AD-' + Date.now(), userId: currentUser.id, username: currentUser.username, tanggal: new Date().toISOString(), modul: actionType, deskripsi: `Input data ${actionType} baru oleh ${currentUser.username}` },
+      { id: 'AD-' + Date.now(), userId: currentUser.id, username: currentUser.username, tanggal: timestamp, modul: actionType, deskripsi: `Input data ${actionType} baru oleh ${currentUser.username}` },
       ...prev
     ]);
 
@@ -482,6 +1010,7 @@ export default function App() {
         lokasiId: selectedLokasi,
         tanggal: timestamp,
         karyawanId: payload.karyawanId,
+        karyawanIds: payload.karyawanIds || [payload.karyawanId],
         bahanMasukKg: payload.bahanMasukKg,
         hasilKupasKg: payload.hasilKupasKg,
         rejectKg: payload.rejectKg,
@@ -490,17 +1019,11 @@ export default function App() {
         yieldPercent: Math.round((payload.hasilKupasKg / payload.bahanMasukKg) * 100),
         rejectRatePercent: Math.round((payload.rejectKg / payload.bahanMasukKg) * 100),
         gajiDihasilkan: (payload.hasilKupasKg * 1500) + (payload.hasilKupasKg > 40 ? (payload.hasilKupasKg - 40) * 300 : 0),
-        insentifDiterima: payload.hasilKupasKg > 40 ? Math.round((payload.hasilKupasKg - 40) * 300) : 0
+        insentifDiterima: payload.hasilKupasKg > 40 ? Math.round((payload.hasilKupasKg - 40) * 300) : 0,
+        approvedStatus: 'Pending',
+        jenisBahan: payload.jenisBahan
       };
       setPeelingLogs(prev => [newPeel, ...prev]);
-
-      // Consume Raw Fruit and increase Kupas WIP
-      setStocks(prev => {
-        let after = adjustStockInner(prev, payload.jenisBahan, -payload.bahanMasukKg);
-        const kupasKey = payload.jenisBahan.replace(' Segar', '') + ' Kupas';
-        after = adjustStockInner(after, kupasKey, payload.hasilKupasKg);
-        return after;
-      });
 
       if (newPeel.yieldPercent < 60) {
         setNotifications(prev => [
@@ -542,6 +1065,7 @@ export default function App() {
         lokasiId: selectedLokasi,
         tanggal: timestamp,
         operatorId: payload.operatorId,
+        karyawanIds: payload.karyawanIds || [payload.operatorId],
         mesinId: payload.mesinId,
         beratFrozenMasukKg: payload.beratFrozenMasukKg,
         beratHasilKeripikKg: payload.beratHasilKeripikKg,
@@ -561,19 +1085,11 @@ export default function App() {
           waktuPembersihan: payload.waktuPembersihan
         },
         gajiOperator: payload.cycleCount * 25000,
-        jenisBuah: payload.jenisBuah
+        jenisBuah: payload.jenisBuah,
+        approvedStatus: 'Pending',
+        vacuumFryingMachines: payload.vacuumFryingMachines || 1
       };
       setFryingLogs(prev => [newFryLog, ...prev]);
-
-      // Deduct frozen chips, minyak and LPG, increase unpacked chips
-      setStocks(prev => {
-        const frozenKey = payload.jenisBuah + ' Frozen';
-        const unpackedKey = payload.jenisBuah + ' Keripik Jadi (Unpacked)';
-        let after = adjustStockInner(prev, frozenKey, -payload.beratFrozenMasukKg);
-        after = adjustStockInner(after, 'Minyak Goreng Sawit (Litre)', -newFryLog.minyakDigunakanLiter);
-        after = adjustStockInner(after, unpackedKey, payload.beratHasilKeripikKg);
-        return after;
-      });
     }
 
     if (actionType === 'QC') {
@@ -591,15 +1107,10 @@ export default function App() {
         alasanReject: payload.alasanReject,
         status: 'Passed',
         jenisVarianBuah: payload.jenisVarianBuah,
-        hasilLolosQcKg: payload.hasilLolosQcKg
+        hasilLolosQcKg: payload.hasilLolosQcKg,
+        approvedStatus: 'Pending'
       };
       setQcLogs(prev => [newQc, ...prev]);
-
-      // Increase verified unpacked stock inside the warehouse direct
-      setStocks(prev => {
-        const unpackedKey = payload.jenisVarianBuah + ' Keripik Jadi (Unpacked)';
-        return adjustStockInner(prev, unpackedKey, payload.hasilLolosQcKg);
-      });
     }
 
     if (actionType === 'PACKAGING') {
@@ -611,81 +1122,22 @@ export default function App() {
         lokasiId: selectedLokasi,
         tanggal: timestamp,
         karyawanId: payload.karyawanId,
+        karyawanIds: payload.karyawanIds || [payload.karyawanId],
         beratMasukKeripikKg: payload.beratMasukKeripikKg,
         beratTerkemasKg: payload.beratTerkemasKg,
         remahanKg: payload.remahanKg,
         totalPcsDihasilkan: payload.totalPcsDihasilkan,
         targetPcsHarian: 300,
         jamKerja: payload.jamKerja,
-        pouchDigunakan: payload.qtyKemasanBrand || payload.pouchDigunakan,
-        boxDigunakan: payload.qtyKardus || payload.boxDigunakan,
+        pouchDigunakan: payload.qtyKemasanBrand || payload.totalPcsDihasilkan,
+        boxDigunakan: payload.qtyKardus || 10,
         qtyLakban: payload.qtyLakban || 0,
         isMixed: payload.isMixed || false,
-        compositions: payload.compositions || {},
-        gajiKemas: (payload.jamKerja * 15000) + (payload.totalPcsDihasilkan > 300 ? (payload.totalPcsDihasilkan - 300) * 50 : 0)
+        compositions: payload.compositions || [],
+        gajiKemas: (payload.jamKerja * 15000) + (payload.totalPcsDihasilkan > 300 ? (payload.totalPcsDihasilkan - 300) * 50 : 0),
+        approvedStatus: 'Pending'
       };
       setPackingLogs(prev => [newPack, ...prev]);
-
-      // Deduct unpacked chips (split if mixed, single fruit variant if not mixed), increase finished pouch SKU count
-      setStocks(prev => {
-        let after = [...prev];
-        if (payload.isMixed && payload.compositions) {
-          if (Array.isArray(payload.compositions)) {
-            // New dynamic arrays compositions
-            payload.compositions.forEach((comp: any) => {
-              const chipVar = chipVariants.find((cv: any) => cv.id === comp.chipVariantId);
-              const pct = comp.percentage || 0;
-              if (chipVar && pct > 0) {
-                const compWeight = (pct * payload.beratMasukKeripikKg) / 100;
-                after = adjustStockInner(after, chipVar.nama, -compWeight);
-              }
-            });
-          } else {
-            // Legacy / object compatibility fallback
-            Object.keys(payload.compositions).forEach(fruitName => {
-              const pct = payload.compositions[fruitName] || 0;
-              if (pct > 0) {
-                const compWeight = (pct * payload.beratMasukKeripikKg) / 100;
-                const unpackedKey = fruitName + ' Keripik Jadi (Unpacked)';
-                after = adjustStockInner(after, unpackedKey, -compWeight);
-              }
-            });
-          }
-        } else {
-          // Single SKU variant deduction
-          const matchedChip = chipVariants.find((cv: any) => {
-            const labelLower = cv.nama.toLowerCase();
-            const skuLower = targetSku?.nama?.toLowerCase() || '';
-            const skuVarianLower = targetSku?.varian?.toLowerCase() || '';
-            return labelLower.includes(skuVarianLower) || skuLower.includes(labelLower);
-          });
-          
-          if (matchedChip) {
-            after = adjustStockInner(after, matchedChip.nama, -payload.beratMasukKeripikKg);
-          } else {
-            // Fallback to legacy structure
-            let fruitType = 'Apel';
-            if (targetSku?.nama.includes('Nangka')) fruitType = 'Nangka';
-            else if (targetSku?.nama.includes('Pisang')) fruitType = 'Pisang';
-            else if (targetSku?.nama.includes('Salak')) fruitType = 'Salak';
-            const unpackedKey = fruitType + ' Keripik Jadi (Unpacked)';
-            after = adjustStockInner(after, unpackedKey, -payload.beratMasukKeripikKg);
-          }
-        }
-
-        // Add finished packaged product
-        if (targetSku) {
-          after = adjustStockInner(after, targetSku.sku, payload.totalPcsDihasilkan, 'pcs');
-        }
-
-        // Reduce supporting materials
-        after = adjustStockInner(after, 'Standing Pouch 100g (Pcs)', -(payload.qtyKemasanBrand || payload.totalPcsDihasilkan), 'pcs');
-        after = adjustStockInner(after, 'Karton Box Agridea (Pcs)', -(payload.qtyKardus || 10), 'pcs');
-        // Subtract tape as well!
-        after = adjustStockInner(after, 'Lakban Packing (Meter / Roll)', -parseFloat(payload.qtyLakban || 0), 'pcs');
-
-        return after;
-      });
     }
 
     if (actionType === 'SALES') {
@@ -733,6 +1185,146 @@ export default function App() {
     }
   };
 
+  const approveProductionTransaction = (logType: string, logId: string, approver: any, signature: string) => {
+    const timestamp = new Date().toISOString().split('T')[0];
+    const approverName = approver.namaLengkap || approver.username;
+    const approverPosition = approver.role;
+    const approvalDateTime = new Date().toLocaleString('id-ID');
+
+    // Update log status and attach signature metadata
+    if (logType === 'PEELING') {
+      const log = peelingLogs.find(l => l.id === logId);
+      if (!log || log.approvedStatus === 'Approved') return;
+      
+      setPeelingLogs(prev => prev.map(l => {
+        if (l.id === logId) {
+          return {
+            ...l,
+            approvedStatus: 'Approved',
+            approverName,
+            approverPosition,
+            approvalDateTime,
+            digitalSignature: signature
+          };
+        }
+        return l;
+      }));
+
+      // Consume Raw Fruit and increase Kupas WIP
+      setStocks(prev => {
+        let after = adjustStockInner(prev, log.jenisBahan || 'Apel Segar', -log.bahanMasukKg);
+        const kupasKey = (log.jenisBahan || 'Apel Segar').replace(' Segar', '') + ' Kupas';
+        after = adjustStockInner(after, kupasKey, log.hasilKupasKg);
+        return after;
+      });
+      logActivity('Production Approval', `Menerima & menyetujui hasil Kupas ${logId} (${log.hasilKupasKg} kg) oleh ${approverName}.`);
+    }
+
+    if (logType === 'FRYING') {
+      const log = fryingLogs.find(l => l.id === logId);
+      if (!log || log.approvedStatus === 'Approved') return;
+
+      setFryingLogs(prev => prev.map(l => {
+        if (l.id === logId) {
+          return {
+            ...l,
+            approvedStatus: 'Approved',
+            approverName,
+            approverPosition,
+            approvalDateTime,
+            digitalSignature: signature
+          };
+        }
+        return l;
+      }));
+
+      // Consume Frozen chips, minyak and LPG, increase unpacked chips
+      setStocks(prev => {
+        const frozenKey = (log.jenisBuah || 'Apel') + ' Frozen';
+        const unpackedKey = (log.jenisBuah || 'Apel') + ' Keripik Jadi (Unpacked)';
+        let after = adjustStockInner(prev, frozenKey, -log.beratFrozenMasukKg);
+        after = adjustStockInner(after, 'Minyak Goreng Sawit (Litre)', -log.minyakDigunakanLiter);
+        after = adjustStockInner(after, unpackedKey, log.beratHasilKeripikKg);
+        return after;
+      });
+      logActivity('Production Approval', `Menerima & menyetujui hasil Frying ${logId} (${log.beratHasilKeripikKg} kg) oleh ${approverName}.`);
+    }
+
+    if (logType === 'QC') {
+      const log = qcLogs.find(l => l.id === logId);
+      if (!log || log.approvedStatus === 'Approved') return;
+
+      setQcLogs(prev => prev.map(l => {
+        if (l.id === logId) {
+          return {
+            ...l,
+            approvedStatus: 'Approved',
+            approverName,
+            approverPosition,
+            approvalDateTime,
+            digitalSignature: signature
+          };
+        }
+        return l;
+      }));
+
+      setStocks(prev => {
+        const unpackedKey = (log.jenisVarianBuah || 'Apel') + ' Keripik Jadi (Unpacked)';
+        return adjustStockInner(prev, unpackedKey, log.hasilLolosQcKg);
+      });
+      logActivity('Production Approval', `Menerima & menyetujui hasil QC ${logId} (${log.hasilLolosQcKg} kg) oleh ${approverName}.`);
+    }
+
+    if (logType === 'PACKAGING') {
+      const log = packingLogs.find(l => l.id === logId);
+      if (!log || log.approvedStatus === 'Approved') return;
+
+      setPackingLogs(prev => prev.map(l => {
+        if (l.id === logId) {
+          return {
+            ...l,
+            approvedStatus: 'Approved',
+            approverName,
+            approverPosition,
+            approvalDateTime,
+            digitalSignature: signature
+          };
+        }
+        return l;
+      }));
+
+      // Consume/increase stocks
+      setStocks(prev => {
+        let after = [...prev];
+        const targetSku = produk.find(p => p.id === log.produkId);
+        
+        if (log.isMixed && log.compositions) {
+          log.compositions.forEach((comp: any) => {
+            const chipVar = chipVariants.find((cv: any) => cv.id === comp.chipVariantId);
+            const pct = comp.percentage || 0;
+            if (chipVar && pct > 0) {
+              const compWeight = (pct * log.beratMasukKeripikKg) / 100;
+              after = adjustStockInner(after, chipVar.nama, -compWeight);
+            }
+          });
+        } else if (targetSku) {
+          const singleFruit = targetSku.varian || 'Apel';
+          const unpackedKey = singleFruit + ' Keripik Jadi (Unpacked)';
+          after = adjustStockInner(after, unpackedKey, -log.beratMasukKeripikKg);
+        }
+
+        if (targetSku) {
+          after = adjustStockInner(after, targetSku.sku, log.totalPcsDihasilkan);
+        }
+
+        after = adjustStockInner(after, 'Standing Pouch 100g (Pcs)', -log.pouchDigunakan);
+        after = adjustStockInner(after, 'Karton Box Agridea (Pcs)', -log.boxDigunakan);
+        return after;
+      });
+      logActivity('Production Approval', `Menerima & menyetujui hasil Packaging ${logId} (${log.totalPcsDihasilkan} Pcs) oleh ${approverName}.`);
+    }
+  };
+
   // State packaging wrapper to feed components
   const state = {
     lokasi,
@@ -761,7 +1353,16 @@ export default function App() {
     maintenanceLogs,
     complianceLogs,
     notifications,
-    auditLogs
+    auditLogs,
+    attendanceLogs,
+    setAttendanceLogs,
+    setPeelingLogs,
+    setFryingLogs,
+    setQcLogs,
+    setPackingLogs,
+    setKaryawan,
+    setStocks,
+    approveProductionTransaction
   };
 
   // Helper sidebar collapsing
@@ -778,6 +1379,11 @@ export default function App() {
     { id: 'dashboard-payroll', label: 'Dashboard Payroll', group: 'dashboard', icon: Users },
     { id: 'dashboard-cogs', label: 'Dashboard COGS & HPP', group: 'dashboard', icon: DollarSign },
     { id: 'dashboard-hq', label: 'Dashboard HQ (Multi-Branch)', group: 'dashboard', icon: Sliders },
+    { id: 'dashboard-budget-actual', label: 'Budget vs Actual', group: 'dashboard', icon: DollarSign },
+    { id: 'dashboard-yield-loss', label: 'Yield Loss Analysis', group: 'dashboard', icon: Activity },
+    { id: 'dashboard-machine-utilization', label: 'Machine Utilization', group: 'dashboard', icon: Wrench },
+    { id: 'dashboard-profitability', label: 'Profitability Analysis', group: 'dashboard', icon: TrendingUp },
+    { id: 'management-meeting-pack', label: 'Management Meeting Pack', group: 'dashboard', icon: FileText },
     
     { id: 'session', label: 'Sign In / Session (Role)', group: 'akun', icon: LogIn },
     { id: 'signup', label: 'Sign Up / Approval', group: 'akun', icon: UserPlus },
@@ -796,9 +1402,14 @@ export default function App() {
 
     { id: 'pengadaan-po', label: 'Purchase Order / Pesanan', group: 'pengadaan', icon: Truck },
     { id: 'pengadaan-penerimaan', label: 'Penerimaan Bahan Baku', group: 'pengadaan', icon: CheckCircle },
+    { id: 'supplier-scorecard', label: 'Supplier Performance Scorecard', group: 'pengadaan', icon: Award },
 
     { id: 'input-produksi', label: 'Input Form Produksi', group: 'produksi', icon: Plus },
+    { id: 'production-approvals', label: 'Approval Produksi (Persetujuan)', group: 'produksi', icon: CheckCircle },
     { id: 'batch-history', label: 'History Batch Produksi', group: 'produksi', icon: ClipboardList },
+    { id: 'production-planning', label: 'Rencana Produksi & Performance', group: 'produksi', icon: Calendar },
+    { id: 'compliance-service', label: 'Compliance & Service Hub', group: 'produksi', icon: ShieldCheck },
+    { id: 'attendance-management', label: 'Attendance & Geo-Fencing', group: 'produksi', icon: Users },
 
     { id: 'inventory-stock', label: 'Real-time Stock Tracker', group: 'inventory', icon: Database },
     { id: 'inventory-opname', label: 'Stock Opname & Adjs', group: 'inventory', icon: Sliders },
@@ -813,10 +1424,19 @@ export default function App() {
     { id: 'payroll-kalkulasi', label: 'Kalkulasi Gaji Borongan', group: 'payroll', icon: Users },
     { id: 'payroll-slips', label: 'Download Slip Gaji', group: 'payroll', icon: ClipboardList },
 
-    { id: 'finance-cashbook', label: 'Petty Cash Ledger', group: 'finance', icon: DollarSign },
+    { id: 'finance-cashbook', label: 'Petty Cash Management (Kas)', group: 'finance', icon: DollarSign },
+    { id: 'finance-cashbank', label: 'Cash & Bank Management', group: 'finance', icon: Wallet },
+    { id: 'finance-ap', label: 'Accounts Payable (Hutang)', group: 'finance', icon: FileSpreadsheet },
+    { id: 'finance-ar', label: 'Accounts Receivable (Piutang)', group: 'finance', icon: TrendingUp },
+    { id: 'finance-cashflow', label: 'Cash Flow & Finance HQ', group: 'finance', icon: Sliders },
 
     { id: 'quality-compliance', label: 'Quality & Food Safety Audits', group: 'quality', icon: ShieldCheck },
-    { id: 'maintenance-sched', label: 'Jadwal & Biaya Maintenance', group: 'maintenance', icon: Wrench }
+    { id: 'maintenance-sched', label: 'Jadwal & Biaya Maintenance', group: 'maintenance', icon: Wrench },
+
+    { id: 'opening-balance-setup', label: 'Opening Balance Setup', group: 'administration', icon: Sliders },
+    { id: 'transaction-revisions', label: 'Transaction Revisions Log', group: 'administration', icon: History },
+
+
   ];
 
   if (!isLoggedIn) {
@@ -855,9 +1475,9 @@ export default function App() {
             {!collapsedGroup.dashboard && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => i.group === 'dashboard' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -873,9 +1493,9 @@ export default function App() {
             {!collapsedGroup.akun && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => i.group === 'akun' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -891,9 +1511,9 @@ export default function App() {
             {!collapsedGroup.master && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => i.group === 'master' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -909,9 +1529,9 @@ export default function App() {
             {!collapsedGroup.pengadaan && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => i.group === 'pengadaan' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -927,9 +1547,9 @@ export default function App() {
             {!collapsedGroup.produksi && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => i.group === 'produksi' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -945,9 +1565,9 @@ export default function App() {
             {!collapsedGroup.inventory && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => i.group === 'inventory' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -963,9 +1583,9 @@ export default function App() {
             {!collapsedGroup.cogs && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => i.group === 'cogs' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -981,9 +1601,9 @@ export default function App() {
             {!collapsedGroup.sales && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => i.group === 'sales' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -999,9 +1619,9 @@ export default function App() {
             {!collapsedGroup.payroll && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => (i.group === 'payroll' || i.group === 'finance') && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
@@ -1017,14 +1637,36 @@ export default function App() {
             {!collapsedGroup.quality && (
               <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
                 {sidebarItems.filter(i => (i.group === 'quality' || i.group === 'maintenance') && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
                     <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span>{item.label}</span>
+                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
                   </button>
                 ))}
               </div>
             )}
           </div>
+
+          {/* Administration Menu Group (Super Admin or HQ Finance) */}
+          {(currentUser?.role === 'Super Admin' || currentUser?.role === 'Finance HQ' || currentUser?.role === 'Finance') && (
+            <div className="space-y-1">
+              <button onClick={() => toggleGroup('administration')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
+                <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">Administration</span>
+                {collapsedGroup.administration ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
+              </button>
+              {!collapsedGroup.administration && (
+                <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
+                  {sidebarItems.filter(i => i.group === 'administration' && isMenuAllowed(currentUser.role, i.id)).map(item => (
+                    <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
+                      <item.icon className="w-3.5 h-3.5 shrink-0" />
+                      <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+
         </nav>
       </aside>
 
@@ -1144,7 +1786,14 @@ export default function App() {
           {/* Load Dashboards components directly */}
           {activeMenu.startsWith('dashboard-') && (
             <div className="animate-fade-in text-xs">
-              <Dashboards state={state} selectedLokasi={selectedLokasi} onNavigate={setActiveMenu} activeMenu={activeMenu} />
+              <Dashboards 
+                state={state} 
+                selectedLokasi={selectedLokasi} 
+                onNavigate={setActiveMenu} 
+                activeMenu={activeMenu} 
+                currentUser={currentUser} 
+                onLogActivity={logActivity} 
+              />
             </div>
           )}
 
@@ -1679,30 +2328,97 @@ export default function App() {
           {/* ===================== AUDIT LOG SCREEN ===================== */}
           {activeMenu === 'audit' && (
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 text-xs animate-fade-in" id="screen-audit">
-              <h3 className="font-bold text-slate-900 text-sm border-b pb-2 flex items-center gap-1.5">
-                <ClipboardList className="w-4 h-4 text-slate-700" /> Session Activity & Security Logs
-              </h3>
-              <p className="text-slate-500">Merekam jejak mutasi database secara kronologis untuk audit keselamatan rantai pangan:</p>
+              <div className="flex flex-col md:flex-row md:items-center justify-between border-b pb-3.5 gap-4">
+                <div>
+                  <h3 className="font-bold text-slate-900 text-sm flex items-center gap-1.5 font-display uppercase tracking-tight">
+                    <ClipboardList className="w-4 h-4 text-slate-700" /> Active Session Activity & System Security Audits
+                  </h3>
+                  <p className="text-slate-500 font-medium mt-0.5">Catatan audit log mutasi database & otorisasi pengguna secara real-time. Jejak log bersifat permanen dan tidak dapat dihapus.</p>
+                </div>
+                <span className="bg-slate-950 text-white font-extrabold font-mono text-[10px] px-3.5 py-1.5 rounded-full uppercase tracking-wider">
+                  Undeletable Vault: {auditLogs.length} Records
+                </span>
+              </div>
 
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-sm">
                 <table className="w-full text-left text-xs border-collapse font-medium text-slate-700">
                   <thead>
-                    <tr className="border-b bg-slate-50 text-slate-500 font-bold">
-                      <th className="py-2 px-3">Waktu Log</th>
-                      <th className="py-2 px-3">Modul</th>
-                      <th className="py-2 px-3">Karyawan / Akun</th>
-                      <th className="py-2 px-3">Aktivitas Terlacak</th>
+                    <tr className="border-b bg-slate-50 text-slate-500 font-bold font-mono text-[10px]">
+                      <th className="py-2.5 px-3">Tanggal / Jam</th>
+                      <th className="py-2.5 px-3">Modul</th>
+                      <th className="py-2.5 px-3">Pengguna (Role)</th>
+                      <th className="py-2.5 px-3 text-center">Unit Pabrik</th>
+                      <th className="py-2.5 px-3">Aksi</th>
+                      <th className="py-2.5 px-3">Aktivitas Terlacak</th>
+                      <th className="py-2.5 px-3">Detail Perubahan / Alasan</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-mono text-[10px]">
-                    {auditLogs.map(log => (
-                      <tr key={log.id} className="hover:bg-slate-50">
-                        <td className="py-2.5 px-3 text-slate-500">{log.tanggal}</td>
-                        <td className="py-2.5 px-3 font-semibold text-indigo-700">{log.modul}</td>
-                        <td className="py-2.5 px-3 text-slate-900">@{log.username}</td>
-                        <td className="py-2.5 px-3 text-slate-700">{log.deskripsi}</td>
-                      </tr>
-                    ))}
+                    {auditLogs.map(log => {
+                      const hasDetails = log.oldValue || log.newValue || log.reason;
+                      return (
+                        <tr key={log.id} className="hover:bg-slate-50 text-slate-800">
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className="font-extrabold text-slate-900 block">{log.tanggal}</span>
+                            <span className="text-slate-400 text-[9px] font-medium block mt-0.5">{log.time || '00:00:00'} (WIB)</span>
+                          </td>
+                          <td className="py-3 px-3 whitespace-nowrap">
+                            <span className="bg-indigo-50 text-indigo-800 font-extrabold px-2 py-0.5 rounded text-[10px] uppercase border border-indigo-100">{log.modul}</span>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className="font-bold text-slate-900 block font-sans">@{log.username}</span>
+                            <span className="text-slate-400 text-[9px] block font-mono mt-0.5">{log.role || 'Karyawan'}</span>
+                          </td>
+                          <td className="py-3 px-3 text-center font-bold text-slate-900">
+                            {log.factory || 'HQ'}
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className={`font-extrabold px-1.5 py-0.5 rounded text-[9px] uppercase border ${
+                              log.action === 'Delete' || log.action?.includes('Hapus')
+                                ? 'bg-rose-50 text-rose-800 border-rose-100'
+                                : log.action === 'Edit' || log.action?.includes('Edit')
+                                ? 'bg-amber-50 text-amber-800 border-amber-100'
+                                : log.action === 'Revision' || log.action?.includes('Revisi')
+                                ? 'bg-cyan-50 text-cyan-800 border-cyan-100'
+                                : log.action?.includes('Restore') || log.action?.includes('Pulihkan')
+                                ? 'bg-purple-50 text-purple-800 border-purple-100'
+                                : 'bg-emerald-50 text-emerald-800 border-emerald-100'
+                            }`}>
+                              {log.action || 'Create'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 font-sans font-semibold text-slate-700 min-w-[200px]">
+                            {log.deskripsi}
+                          </td>
+                          <td className="py-3 px-3">
+                            {hasDetails ? (
+                              <div className="space-y-1 text-[9px] font-medium bg-slate-50 p-2 rounded border border-slate-100 max-w-[260px] overflow-hidden truncate">
+                                {log.oldValue && (
+                                  <div className="truncate">
+                                    <span className="text-[8px] uppercase font-bold text-slate-400">Old:</span>{' '}
+                                    <span className="font-mono text-rose-600">{log.oldValue}</span>
+                                  </div>
+                                )}
+                                {log.newValue && (
+                                  <div className="truncate">
+                                    <span className="text-[8px] uppercase font-bold text-slate-400">New:</span>{' '}
+                                    <span className="font-mono text-emerald-600">{log.newValue}</span>
+                                  </div>
+                                )}
+                                {log.reason && (
+                                  <div>
+                                    <span className="text-[8px] uppercase font-bold text-slate-400">Reason:</span>{' '}
+                                    <span className="text-slate-800 italic">"{log.reason}"</span>
+                                  </div>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-slate-400 italic">No details</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -2356,7 +3072,49 @@ export default function App() {
           {/* ===================== FORM PRODUKSI INTREGRATED ===================== */}
           {activeMenu === 'input-produksi' && (
             <div className="space-y-6 animate-fade-in" id="screen-input-produksi">
-              <SidebarForms state={state} onAction={handleActionCallback} selectedLokasi={selectedLokasi} />
+              <SidebarForms state={state} onAction={handleActionCallback} selectedLokasi={selectedLokasi} currentUser={currentUser} attendanceLogs={attendanceLogs} />
+            </div>
+          )}
+
+          {/* ===================== PERSETUJUAN KERJA (PRODUCTION APPROVALS) ===================== */}
+          {activeMenu === 'production-approvals' && (
+            <div className="space-y-6 animate-fade-in" id="screen-production-approvals">
+              <ProductionApprovals state={state} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== PRODUCTION PLANNING VIEW ===================== */}
+          {activeMenu === 'production-planning' && (
+            <div className="space-y-6 animate-fade-in" id="screen-production-planning">
+              <ProductionPlanning
+                state={state}
+                selectedLokasi={selectedLokasi}
+                currentUser={currentUser}
+              />
+            </div>
+          )}
+
+          {/* ===================== COMPLIANCE & SERVICE HUB ===================== */}
+          {activeMenu === 'compliance-service' && (
+            <div className="space-y-6 animate-fade-in" id="screen-compliance-service">
+              <ComplianceAndService
+                state={state}
+                setMaintenanceLogs={setMaintenanceLogs}
+                setComplianceLogs={setComplianceLogs}
+                currentUser={currentUser}
+                selectedLokasi={selectedLokasi}
+              />
+            </div>
+          )}
+
+          {/* ===================== ATTENDANCE & PAYROLL HUB ===================== */}
+          {activeMenu === 'attendance-management' && (
+            <div className="space-y-6 animate-fade-in" id="screen-attendance-management">
+              <AttendanceManagement
+                state={state}
+                currentUser={currentUser}
+                selectedLokasi={selectedLokasi}
+              />
             </div>
           )}
 
@@ -2436,9 +3194,23 @@ export default function App() {
             </div>
           )}
 
+          {/* ===================== SUPPLIER SCORECARD VIEW ===================== */}
+          {activeMenu === 'supplier-scorecard' && (
+            <div className="animate-fade-in text-xs">
+              <SupplierPerformanceScorecard state={state} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== MANAGEMENT MEETING PACK VIEW ===================== */}
+          {activeMenu === 'management-meeting-pack' && (
+            <div className="animate-fade-in text-xs">
+              <ManagementMeetingPack state={state} currentUser={currentUser} />
+            </div>
+          )}
+
           {/* ===================== NOT IMPLEMENTED VIEWS: GENERIC LAYOUT TO ENSURE USABILITY ===================== */}
           {/* Automatically fallback show tables with interactive search for other menus to keep 100% of the PRD functional! */}
-          {!['dashboard-utama', 'dashboard-produksi', 'dashboard-inventory', 'dashboard-sales', 'dashboard-payroll', 'dashboard-cogs', 'dashboard-hq', 'session', 'signup', 'roles', 'audit', 'master-karyawan', 'master-sku', 'input-produksi', 'inventory-stock', 'cogs-component', 'sales-batch-trace', 'cogs-simulation'].includes(activeMenu) && (
+          {!['dashboard-utama', 'dashboard-produksi', 'dashboard-inventory', 'dashboard-sales', 'dashboard-payroll', 'dashboard-cogs', 'dashboard-hq', 'session', 'signup', 'roles', 'audit', 'master-karyawan', 'master-sku', 'input-produksi', 'inventory-stock', 'cogs-component', 'sales-batch-trace', 'cogs-simulation', 'production-approvals', 'production-planning', 'compliance-service', 'attendance-management', 'users-list', 'supplier-scorecard', 'management-meeting-pack'].includes(activeMenu) && (
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 text-xs animate-fade-in" id="fallback-screen">
               <div className="flex justify-between items-center border-b pb-2">
                 <div>
@@ -5462,33 +6234,70 @@ export default function App() {
               )}
 
               {activeMenu === 'finance-cashbook' && (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse font-medium text-slate-700 font-mono">
-                    <thead>
-                      <tr className="border-b bg-slate-50 text-slate-500 font-bold">
-                        <th className="py-2 px-3">Tanggal Cash</th>
-                        <th className="py-2 px-3">Kategori Mutasi</th>
-                        <th className="py-2 px-3">Deskripsi Ledger</th>
-                        <th className="py-2 px-3 text-right">Jumlah Pengeluaran</th>
-                        <th className="py-2 px-3 text-right">Alokasi HPP</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pettyCash.map(cash => (
-                        <tr key={cash.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3 text-slate-500">{cash.tanggal}</td>
-                          <td className="py-2.5 px-3 font-bold text-slate-900">{cash.kategori}</td>
-                          <td className="py-2.5 px-3 text-slate-700">{cash.deskripsi}</td>
-                          <td className="py-2.5 px-3 text-right font-black text-rose-600">Rp {cash.jumlah.toLocaleString('id-ID')}</td>
-                          <td className="py-2.5 px-3 text-right font-sans font-bold">
-                            <span className={`px-2 py-0.5 rounded text-[9px] ${
-                              cash.masukHPP ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'
-                            }`}>{cash.masukHPP ? 'Ya (HPP)' : 'Tidak'}</span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="space-y-6">
+                  <PettyCashManager
+                    state={state}
+                    setPettyCash={setPettyCash}
+                    currentUser={currentUser}
+                  />
+                </div>
+              )}
+
+              {['finance-cashbank', 'finance-ap', 'finance-ar', 'finance-cashflow'].includes(activeMenu) && (
+                <div className="space-y-6">
+                  <FinanceManager
+                    state={state}
+                    activeMenu={activeMenu}
+                    currentUser={currentUser}
+                    onNavigate={setActiveMenu}
+                  />
+                </div>
+              )}
+
+
+
+              {activeMenu === 'opening-balance-setup' && (
+                <div className="space-y-6">
+                  <OpeningBalanceSetup
+                    lokasi={lokasi}
+                    fruitVariants={fruitVariants}
+                    chipVariants={chipVariants}
+                    skuProduk={produk}
+                    openingInventory={openingInventory}
+                    setOpeningInventory={setOpeningInventory}
+                    openingProduction={openingProduction}
+                    setOpeningProduction={setOpeningProduction}
+                    openingFinancial={openingFinancial}
+                    setOpeningFinancial={setOpeningFinancial}
+                    recalculateAll={recalculateAll}
+                    logActivity={logActivity}
+                  />
+                </div>
+              )}
+
+              {activeMenu === 'transaction-revisions' && (
+                <div className="space-y-6">
+                  <TransactionRevisions
+                    currentUser={currentUser}
+                    penerimaan={penerimaan}
+                    setPenerimaan={setPenerimaan}
+                    peelingLogs={peelingLogs}
+                    setPeelingLogs={setPeelingLogs}
+                    freezingLogs={freezingLogs}
+                    setFreezingLogs={setFreezingLogs}
+                    fryingLogs={fryingLogs}
+                    setFryingLogs={setFryingLogs}
+                    qcLogs={qcLogs}
+                    setQcLogs={setQcLogs}
+                    packingLogs={packingLogs}
+                    setPackingLogs={setPackingLogs}
+                    sales={sales}
+                    setSales={setSales}
+                    pettyCash={pettyCash}
+                    setPettyCash={setPettyCash}
+                    logActivity={logActivity}
+                    recalculateAll={recalculateAll}
+                  />
                 </div>
               )}
 
@@ -5833,6 +6642,159 @@ export default function App() {
             );
           })()}
         </main>
+        
+        {/* Persistent AI Copilot panel accessible across all dashboards */}
+        <AICopilot 
+          state={state} 
+          activeMenu={activeMenu} 
+          selectedLokasi={selectedLokasi} 
+        />
+
+        {/* FIRST LOGIN SECURITY ALERT POPUP */}
+        {showFirstLoginPopup && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999] animate-fade-in" id="security-alert-popup">
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 text-slate-800 space-y-6 animate-scale-in">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 border border-amber-200 shrink-0">
+                  <Shield className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-slate-900 tracking-tight text-base font-display">Peringatan Keamanan</h3>
+                  <p className="text-xs text-slate-500 font-medium font-mono uppercase tracking-wider block mt-0.5">Role: {currentUser?.role}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-xs leading-relaxed text-slate-600 font-medium">
+                  Demi alasan keamanan, silakan ganti password utama Anda saat ini untuk mencegah penyalahgunaan akun di lingkungan pabrik.
+                </p>
+                <div className="p-3 bg-amber-50/50 border border-amber-200/60 rounded-xl text-amber-700 text-[11px] leading-relaxed font-sans flex gap-2">
+                  <Lock className="w-4 h-4 shrink-0 text-amber-500 mt-0.5 animate-bounce" />
+                  <span>
+                    Anda masuk menggunakan password default (<strong>016210276</strong>) untuk pertama kalinya. Disarankan untuk segera memperbaruinya.
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  onClick={() => {
+                    setShowFirstLoginPopup(false);
+                    setShowChangePasswordModal(true);
+                  }}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs py-3 px-4 rounded-xl transition-all font-sans cursor-pointer hover:shadow-lg hover:shadow-emerald-600/20 text-center flex items-center justify-center gap-1.5"
+                  id="security-popup-change-now"
+                >
+                  <Key className="w-4 h-4" /> Change Now
+                </button>
+                <button
+                  onClick={() => {
+                    setPopupDismissed(true);
+                    setShowFirstLoginPopup(false);
+                  }}
+                  className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-3 px-4 rounded-xl transition-all font-sans cursor-pointer text-center"
+                  id="security-popup-remind-later"
+                >
+                  Remind Me Later
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* CHANGE PASSWORD DIALOG MODAL */}
+        {showChangePasswordModal && (
+          <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-[9999] animate-fade-in" id="change-password-modal">
+            <div className="bg-white rounded-2xl shadow-xl border border-slate-200 max-w-md w-full p-6 text-slate-800 space-y-5 animate-scale-in">
+              <div className="flex items-center justify-between border-b pb-3 block">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-indigo-600" />
+                  <span className="font-extrabold text-slate-900 text-sm font-display">Ganti Password Keamanan</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setChangePasswordOld('');
+                    setChangePasswordNew('');
+                    setChangePasswordConfirm('');
+                    setChangePasswordError('');
+                    setShowChangePasswordModal(false);
+                  }}
+                  className="text-slate-400 hover:text-slate-600 text-sm font-sans cursor-pointer p-1"
+                >
+                  ✕
+                </button>
+              </div>
+
+              {changePasswordError && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-600 text-[11px] rounded-xl flex items-center gap-2 font-semibold">
+                  <AlertCircle className="w-4 h-4 shrink-0" />
+                  <span>{changePasswordError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleAppChangePasswordSubmit} className="space-y-4 text-xs">
+                <div className="space-y-1.5 text-left">
+                  <label className="font-bold text-slate-700 block">Password Saat Ini (Current Password) *</label>
+                  <input
+                    type="password"
+                    value={changePasswordOld}
+                    onChange={(e) => setChangePasswordOld(e.target.value)}
+                    className="border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-xl p-2.5 w-full font-sans text-xs bg-slate-50"
+                    placeholder="Masukkan password saat ini (016210276)"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5 text-left">
+                  <label className="font-bold text-slate-700 block">Password Baru (New Password) *</label>
+                  <input
+                    type="password"
+                    value={changePasswordNew}
+                    onChange={(e) => setChangePasswordNew(e.target.value)}
+                    className="border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-xl p-2.5 w-full font-sans text-xs"
+                    placeholder="Minimal 8 karakter, 1 huruf besar, 1 angka"
+                    required
+                  />
+                </div>
+
+                <div className="space-y-1.5 text-left">
+                  <label className="font-bold text-slate-700 block">Konfirmasi Password Baru *</label>
+                  <input
+                    type="password"
+                    value={changePasswordConfirm}
+                    onChange={(e) => setChangePasswordConfirm(e.target.value)}
+                    className="border border-slate-200 text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded-xl p-2.5 w-full font-sans text-xs"
+                    placeholder="Konfirmasi password baru Anda"
+                    required
+                  />
+                </div>
+
+                <div className="pt-2 flex items-center gap-3">
+                  <button
+                    type="submit"
+                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs py-3 px-4 rounded-xl transition-all font-sans cursor-pointer text-center"
+                    id="submit-password-change-btn"
+                  >
+                    Simpan Perubahan
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setChangePasswordOld('');
+                      setChangePasswordNew('');
+                      setChangePasswordConfirm('');
+                      setChangePasswordError('');
+                      setShowChangePasswordModal(false);
+                    }}
+                    className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold text-xs py-3 px-4 rounded-xl transition-all font-sans cursor-pointer text-center"
+                  >
+                     Batal
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
