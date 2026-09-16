@@ -42,7 +42,24 @@ import {
   Shield,
   Key,
   AlertCircle,
-  History
+  AlertTriangle,
+  History,
+  Layers,
+  FlaskConical,
+  Brain,
+  Smartphone,
+  Menu,
+  Wifi,
+  Send,
+  PlusCircle,
+  X,
+  BookOpen,
+  Grid,
+  Sparkles,
+  Compass,
+  MapPin,
+  Cloud,
+  HardDrive
 } from 'lucide-react';
 
 // Subcomponents
@@ -52,15 +69,38 @@ import SidebarForms from './components/SidebarForms';
 import LoginScreen from './components/LoginScreen';
 import OpeningBalanceSetup from './components/OpeningBalanceSetup';
 import TransactionRevisions from './components/TransactionRevisions';
+import OpeningBalanceWizard from './components/OpeningBalanceWizard';
 import ProductionPlanning from './components/ProductionPlanning';
 import ComplianceAndService from './components/ComplianceAndService';
 import AttendanceManagement from './components/AttendanceManagement';
 import ProductionApprovals from './components/ProductionApprovals';
 import PettyCashManager from './components/PettyCashManager';
 import FinanceManager from './components/FinanceManager';
+import MultiFactoryFinancialSystem from './components/MultiFactoryFinancialSystem';
 import SupplierPerformanceScorecard from './components/SupplierPerformanceScorecard';
 import AICopilot from './components/AICopilot';
 import ManagementMeetingPack from './components/ManagementMeetingPack';
+import PackagingMasterManager from './components/PackagingMasterManager';
+import SupportingMaterialsManager from './components/SupportingMaterialsManager';
+import ChemicalsConsumablesManager from './components/ChemicalsConsumablesManager';
+import BOMManagement from './components/BOMManagement';
+import RecipeYieldStandards from './components/RecipeYieldStandards';
+import ProductionRouting from './components/ProductionRouting';
+import InterFactoryTransfer from './components/InterFactoryTransfer';
+import BatchTraceability from './components/BatchTraceability';
+import ProductRecall from './components/ProductRecall';
+import HACCPManagement from './components/HACCPManagement';
+import DirectorDashboard from './components/DirectorDashboard';
+import DemandPlanning from './components/DemandPlanning';
+import MRP from './components/MRP';
+import CapacityPlanning from './components/CapacityPlanning';
+import AIControlTower from './components/AIControlTower';
+import AIExecutiveAdvisor from './components/AIExecutiveAdvisor';
+import AgrideaMobilePlatform from './components/AgrideaMobilePlatform';
+import GeminiChatbot from './components/GeminiChatbot';
+import GoogleMapsFacilityTracker from './components/GoogleMapsFacilityTracker';
+import { GoogleCloudWorkspaceHub } from './components/GoogleCloudWorkspaceHub';
+import { SIDEBAR_ITEMS, SIDEBAR_GROUPS, checkMenuAllowed } from './config/navigation';
 
 // Types and Interfaces
 import { AuditLog } from './types';
@@ -94,7 +134,10 @@ import {
   SEED_MAINTENANCE_LOGS,
   SEED_COMPLIANCE_LOGS,
   SEED_NOTIFIKASI,
-  SEED_AUDIT_LOGS
+  SEED_AUDIT_LOGS,
+  SEED_PACKAGING_MASTER,
+  SEED_SUPPORTING_MASTER,
+  SEED_CHEMICALS_MASTER
 } from './initialData';
 
 const systemSimpleHash = (str: string) => {
@@ -107,6 +150,27 @@ const systemSimpleHash = (str: string) => {
 };
 
 export default function App() {
+  // Theme dark mode state
+  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('agridea-theme');
+      if (saved) return saved === 'dark';
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+      localStorage.setItem('agridea-theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('agridea-theme', 'light');
+    }
+  }, [isDarkMode]);
+
   // Global State
   const [lokasi, setLokasi] = useState<any[]>(SEED_LOKASI);
   const [currentUser, setCurrentUser] = useState<any>(null); // Default to null before login
@@ -117,19 +181,19 @@ export default function App() {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(false); // Always redirect to login page initially
   
   const [rolePermissions, setRolePermissions] = useState<{[key: string]: string[]}>({
-    'Super Admin': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
-    'Kepala Pabrik HQ': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
-    'Direktur HQ': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
-    'Director': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
-    'HQ Admin': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
-    'HQ Production': ['dashboard', 'master', 'produksi', 'inventory', 'quality', 'maintenance'],
-    'HQ Production Manager': ['dashboard', 'master', 'produksi', 'inventory', 'quality', 'maintenance'],
-    'HQ Management': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
+    'Super Admin': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance', 'planning'],
+    'Kepala Pabrik HQ': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance', 'planning'],
+    'Direktur HQ': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance', 'planning'],
+    'Director': ['dashboard', 'akun', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance', 'planning'],
+    'HQ Admin': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance', 'planning'],
+    'HQ Production': ['dashboard', 'master', 'produksi', 'inventory', 'quality', 'maintenance', 'planning'],
+    'HQ Production Manager': ['dashboard', 'master', 'produksi', 'inventory', 'quality', 'maintenance', 'planning'],
+    'HQ Management': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance', 'planning'],
     'HQ Finance': ['dashboard', 'cogs', 'payroll', 'finance'],
     'Finance HQ': ['dashboard', 'cogs', 'payroll', 'finance'],
     'Finance': ['dashboard', 'cogs', 'payroll', 'finance'],
-    'Branch Manager': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
-    'Kepala Pabrik Cabang': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance'],
+    'Branch Manager': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance', 'planning'],
+    'Kepala Pabrik Cabang': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'cogs', 'sales', 'payroll', 'finance', 'quality', 'maintenance', 'planning'],
     'Branch Admin': ['dashboard', 'master', 'pengadaan', 'produksi', 'inventory', 'sales', 'delivery'],
     'Branch Finance': ['dashboard', 'payroll', 'finance', 'sales'],
     'Finance Admin': ['dashboard', 'payroll', 'finance', 'sales'],
@@ -254,6 +318,18 @@ export default function App() {
   const [produk, setProduk] = useState<any[]>(SEED_PRODUK);
   const [fruitVariants, setFruitVariants] = useState<any[]>(SEED_FRUIT_VARIANTS);
   const [chipVariants, setChipVariants] = useState<any[]>(SEED_CHIP_VARIANTS);
+  const [packagingMaster, setPackagingMaster] = useState<any[]>(() => {
+    const raw = localStorage.getItem('agridea_packaging_master');
+    return raw ? JSON.parse(raw) : SEED_PACKAGING_MASTER;
+  });
+  const [supportingMaster, setSupportingMaster] = useState<any[]>(() => {
+    const raw = localStorage.getItem('agridea_supporting_master');
+    return raw ? JSON.parse(raw) : SEED_SUPPORTING_MASTER;
+  });
+  const [chemicalsMaster, setChemicalsMaster] = useState<any[]>(() => {
+    const raw = localStorage.getItem('agridea_chemicals_master');
+    return raw ? JSON.parse(raw) : SEED_CHEMICALS_MASTER;
+  });
 
   // Fruit Variants UI States
   const [tempFruit, setTempFruit] = useState<any>({ id: '', nama: '', category: 'Fruit', status: 'Active', notes: '' });
@@ -385,6 +461,18 @@ export default function App() {
   }, [openingFinancial]);
 
   useEffect(() => {
+    localStorage.setItem('agridea_packaging_master', JSON.stringify(packagingMaster));
+  }, [packagingMaster]);
+
+  useEffect(() => {
+    localStorage.setItem('agridea_supporting_master', JSON.stringify(supportingMaster));
+  }, [supportingMaster]);
+
+  useEffect(() => {
+    localStorage.setItem('agridea_chemicals_master', JSON.stringify(chemicalsMaster));
+  }, [chemicalsMaster]);
+
+  useEffect(() => {
     localStorage.setItem('agridea_stocks', JSON.stringify(stocks));
   }, [stocks]);
 
@@ -436,12 +524,36 @@ export default function App() {
       if (idx !== -1) {
         recalculatedStocks[idx] = { ...recalculatedStocks[idx], qty: op.qty };
       } else {
+        let kategori = 'Bahan Baku';
+        let unitStr = 'kg';
+        if (op.inventoryType === 'Finished Goods') {
+          kategori = 'Produk Jadi';
+          unitStr = 'pcs';
+        } else if (op.inventoryType === 'Packaging & Supporting Materials') {
+          if (op.materialCategory === 'Packaging Materials') {
+            kategori = 'Packing Material';
+            const pmItem = packagingMaster.find(pm => pm.id === op.variant);
+            unitStr = pmItem?.unit || 'pcs';
+          } else if (op.materialCategory === 'Supporting Materials') {
+            kategori = 'Supporting Materials';
+            const smItem = supportingMaster.find(sm => sm.id === op.variant);
+            unitStr = smItem?.unit || 'unit';
+          } else {
+            kategori = 'Production Consumables';
+            const smItem = supportingMaster.find(sm => sm.id === op.variant);
+            unitStr = smItem?.unit || 'unit';
+          }
+        } else if (op.inventoryType.includes('WIP') || op.inventoryType === 'Frozen' || op.inventoryType === 'Chips') {
+          kategori = 'WIP';
+          unitStr = 'kg';
+        }
+        
         recalculatedStocks.push({
           key: op.variant,
-          kategori: op.inventoryType === 'Finished Goods' ? 'Produk Jadi' : (op.inventoryType.includes('WIP') || op.inventoryType === 'Frozen' || op.inventoryType === 'Chips') ? 'WIP' : 'Bahan Baku',
+          kategori,
           qty: op.qty,
           lokasiId: op.lokasiId,
-          unit: op.inventoryType === 'Finished Goods' || op.inventoryType === 'Packaging Material' ? 'pcs' : 'kg'
+          unit: unitStr
         });
       }
     });
@@ -742,119 +854,7 @@ export default function App() {
   }, [currentUser, selectedLokasi]);
 
   const isMenuAllowed = (role: string, menuId: string) => {
-    if (role === 'Super Admin' || role === 'Kepala Pabrik HQ' || role === 'Direktur HQ' || role === 'Director') return true;
-    if (menuId === 'session' || menuId === 'signup') return true;
-
-    // Custom check for Opening Balance Setup & Transaction Revisions
-    if (menuId === 'opening-balance-setup' || menuId === 'transaction-revisions') {
-      const allowedRoles = ['Super Admin', 'Finance HQ', 'Finance'];
-      return allowedRoles.includes(role);
-    }
-    
-    // Custom check for compliance & service operational reporting hub
-    if (menuId === 'compliance-service') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang',
-        'Production Supervisor', 'Quality Control', 'QC', 'Operator', 'Operator Mesin', 'Kupas', 'Frying', 'Kemas'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for employee attendance & payroll geo-fencing hub
-    if (menuId === 'attendance-management') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang',
-        'Production Supervisor', 'HR & Procurement', 'HR & Procurement Manager', 'Finance HQ', 'Finance'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for production planning access
-    if (menuId === 'production-planning') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Production', 'HQ Production Manager', 'HQ Management', 'HQ Admin',
-        'Branch Manager', 'Kepala Pabrik Cabang'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for Supplier Scorecard access
-    if (menuId === 'supplier-scorecard') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Procurement', 'Branch Manager', 'Kepala Pabrik Cabang', 'Factory Manager',
-        'HR & Procurement', 'HR & Procurement Manager', 'Purchasing', 'HQ Admin'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for Management Meeting Pack access
-    if (menuId === 'management-meeting-pack') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Management', 'HQ Admin', 'Branch Manager', 'Kepala Pabrik Cabang', 'Factory Manager',
-        'Finance', 'Finance HQ', 'HQ Procurement', 'HR & Procurement', 'HR & Procurement Manager',
-        'HQ Production', 'HQ Production Manager'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for Budget vs Actual dashboard
-    if (menuId === 'dashboard-budget-actual') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang', 'Finance HQ', 'Finance'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for Profitability Analysis dashboard
-    if (menuId === 'dashboard-profitability') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang', 'Finance HQ', 'Finance'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for Yield Loss Analysis dashboard
-    if (menuId === 'dashboard-yield-loss') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Production', 'Branch Manager', 'Kepala Pabrik Cabang'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for Petty Cash Management module
-    if (menuId === 'finance-cashbook') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Production', 'HQ Production Manager', 'Branch Manager', 'Kepala Pabrik Cabang',
-        'Finance HQ', 'Finance', 'Admin', 'Factory Manager', 'Kepala Pabrik'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Custom check for Machine Utilization dashboard
-    if (menuId === 'dashboard-machine-utilization') {
-      const allowedRoles = [
-        'Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director',
-        'HQ Production', 'Branch Manager', 'Kepala Pabrik Cabang'
-      ];
-      return allowedRoles.includes(role);
-    }
-
-    // Find item to check its group
-    const item = sidebarItems.find(i => i.id === menuId);
-    if (!item) return true; // non-sidebar views are always accessible
-    if (item.group === 'akun') return true; // anyone can access akun parameters like session/matrix
-    
-    const allowedGroups = rolePermissions[role] || ['dashboard'];
-    return allowedGroups.includes(item.group);
+    return checkMenuAllowed(role, menuId, rolePermissions);
   };
 
   // Editing and dynamic creation states
@@ -869,14 +869,81 @@ export default function App() {
   const [selectedBatchDetail, setSelectedBatchDetail] = useState<any | null>(null);
 
   // Search filter and tab navigations
-  const [activeMenu, setActiveMenu] = useState<string>('dashboard-utama');
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const ua = navigator.userAgent || '';
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(ua);
+    const isSmallScreen = window.innerWidth < 768;
+    return isSmallScreen || isMobileUA;
+  });
+  const [activeMenu, setActiveMenu] = useState<string>(() => {
+    if (typeof window === 'undefined') return 'dashboard-utama';
+    const ua = navigator.userAgent || '';
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(ua);
+    const isSmallScreen = window.innerWidth < 768;
+    const isMob = isSmallScreen || isMobileUA;
+    return isMob ? 'agridea-mobile' : 'dashboard-utama';
+  });
+  const [showMobileMoreDrawer, setShowMobileMoreDrawer] = useState<boolean>(false);
+  const [showMobileAiChat, setShowMobileAiChat] = useState<boolean>(false);
+  const [mobileSearchQuery, setMobileSearchQuery] = useState<string>('');
+  const [mobileChatHistory, setMobileChatHistory] = useState<any[]>([
+    {
+      sender: 'ai',
+      text: 'Halo! Saya Agridea AI Copilot Mobile. Ada yang bisa saya bantu menguji operasional pabrik (OEE mesin, Yield Peeling Kupas harian, safety limits kemasan, atau Profitability SKU)?'
+    }
+  ]);
+  const [mobileChatInput, setMobileChatInput] = useState<string>('');
+
+  useEffect(() => {
+    const handleResize = () => {
+      const ua = navigator.userAgent || '';
+      const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(ua);
+      const isSmallScreen = window.innerWidth < 768;
+      const isMob = isSmallScreen || isMobileUA;
+      setIsMobile(isMob);
+    };
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleMobileAiSubmit = () => {
+    if (!mobileChatInput.trim()) return;
+    const userQ = mobileChatInput;
+    setMobileChatHistory(prev => [...prev, { sender: 'user', text: userQ }]);
+    setMobileChatInput('');
+
+    setTimeout(() => {
+      let r = '';
+      const q = userQ.toLowerCase();
+      
+      const actStocks = state?.stocks ? state.stocks.reduce((acc: number, s: any) => acc + (s.beratKg || s.stok || 0), 0) : 12400;
+
+      if (q.includes('yield') || q.includes('turun') || q.includes('kupas')) {
+        r = `Sistem mendeteksi Yield Peeling (Kupas) Rata-rata di Pabrik Sipahutar (SSP) turun menjadi 58.2% pada dua hari terakhir. Disarankan untuk mengecek pemilah diameter buah apel agar sortasi di awal lebih ketat.`;
+      } else if (q.includes('stok') || q.includes('inventory') || q.includes('kemasan')) {
+        r = `Peringatan: Stok Standing Pouch Varian Rempah 70g saat ini sisa 340 pcs, di bawah safety limit 1,000 pcs di Malang Gudang. Ada total ${actStocks.toLocaleString()} Kg bulk unpacked chips yang siap dikemas.`;
+      } else if (q.includes('profit') || q.includes('sku') || q.includes('untung')) {
+        r = `Berdasarkan analisis COGS hari ini, SKU 'Keripik Apel Rempah Premium 70G' memberikan margin kotor tertinggi di 38.5% berkat rantai pengadaan mitra tani Batu yang stabil.`;
+      } else if (q.includes('risiko') || q.includes('hazard') || q.includes('risk')) {
+        r = `Status Risiko: Rendah untuk kualitas air HCCP, Menengah untuk fluktuasi pasokan gas LPG 50kg di pabrik SSP. Disarankan menyiapkan safety stock tabung cadangan.`;
+      } else {
+        r = `Saya mendeteksi ${state?.karyawan?.length || 15} operator aktif di pabrik, mengelola ${state?.batches?.length || 5} batch aktif minggu ini. Silakan tanyakan korelasi spesifik OEE mesin, yield, atau cash flow.`;
+      }
+      setMobileChatHistory(prev => [...prev, { sender: 'ai', text: r }]);
+    }, 850);
+  };
+
   const [filterSearch, setFilterSearch] = useState<string>('');
   const [collapsedGroup, setCollapsedGroup] = useState<{ [key: string]: boolean }>({
-    dashboard: false,
+    dashboard: true,
+    executive: true,
     akun: true,
     master: true,
     pengadaan: true,
     produksi: true,
+    planning: true,
     inventory: true,
     cogs: true,
     sales: true,
@@ -884,7 +951,7 @@ export default function App() {
     finance: true,
     quality: true,
     maintenance: true,
-    administration: false,
+    administration: true,
   });
 
   // Master Data Add Modals
@@ -1171,15 +1238,18 @@ export default function App() {
 
     if (actionType === 'PETTYCASH') {
       const newCash = {
-        id: 'PC-' + Date.now(),
-        tanggal: timestamp,
-        lokasiId: selectedLokasi,
+        id: payload.id || payload.pettyCashNumber || 'PC-' + Date.now(),
+        tanggal: payload.tanggal || timestamp,
+        lokasiId: payload.lokasiId || selectedLokasi,
         kategori: payload.kategori,
         deskripsi: payload.deskripsi,
         tipe: payload.tipe,
         jumlah: payload.jumlah,
         masukHPP: payload.masukHPP,
-        status: 'Approved'
+        requester: payload.requester || currentUser?.namaLengkap || currentUser?.username || 'Staff',
+        notes: payload.notes || '',
+        documents: payload.documents || [],
+        status: payload.status || 'Approved'
       };
       setPettyCash(prev => [newCash, ...prev]);
     }
@@ -1346,6 +1416,10 @@ export default function App() {
     qcLogs,
     packingLogs,
     stocks,
+    openingInventory,
+    packagingMaster,
+    supportingMaster,
+    chemicalsMaster,
     stockOpname,
     pettyCash,
     sales,
@@ -1367,77 +1441,23 @@ export default function App() {
 
   // Helper sidebar collapsing
   const toggleGroup = (group: string) => {
-    setCollapsedGroup(prev => ({ ...prev, [group]: !prev[group] }));
+    setCollapsedGroup(prev => {
+      const isCurrentlyCollapsed = prev[group];
+      const nextState: { [key: string]: boolean } = {};
+      
+      // Close all by default
+      Object.keys(prev).forEach(key => {
+        nextState[key] = true;
+      });
+
+      // Toggle the target one
+      nextState[group] = !isCurrentlyCollapsed;
+      return nextState;
+    });
   };
 
-  // Menu lists
-  const sidebarItems = [
-    { id: 'dashboard-utama', label: 'Dashboard Utama', group: 'dashboard', icon: Sliders },
-    { id: 'dashboard-produksi', label: 'Dashboard Produksi', group: 'dashboard', icon: Factory },
-    { id: 'dashboard-inventory', label: 'Dashboard Inventory', group: 'dashboard', icon: Database },
-    { id: 'dashboard-sales', label: 'Dashboard Sales', group: 'dashboard', icon: TrendingUp },
-    { id: 'dashboard-payroll', label: 'Dashboard Payroll', group: 'dashboard', icon: Users },
-    { id: 'dashboard-cogs', label: 'Dashboard COGS & HPP', group: 'dashboard', icon: DollarSign },
-    { id: 'dashboard-hq', label: 'Dashboard HQ (Multi-Branch)', group: 'dashboard', icon: Sliders },
-    { id: 'dashboard-budget-actual', label: 'Budget vs Actual', group: 'dashboard', icon: DollarSign },
-    { id: 'dashboard-yield-loss', label: 'Yield Loss Analysis', group: 'dashboard', icon: Activity },
-    { id: 'dashboard-machine-utilization', label: 'Machine Utilization', group: 'dashboard', icon: Wrench },
-    { id: 'dashboard-profitability', label: 'Profitability Analysis', group: 'dashboard', icon: TrendingUp },
-    { id: 'management-meeting-pack', label: 'Management Meeting Pack', group: 'dashboard', icon: FileText },
-    
-    { id: 'session', label: 'Sign In / Session (Role)', group: 'akun', icon: LogIn },
-    { id: 'signup', label: 'Sign Up / Approval', group: 'akun', icon: UserPlus },
-    { id: 'users-list', label: 'Daftar Akun Pengguna', group: 'akun', icon: Users },
-    { id: 'roles', label: 'Role & Permission Matrix', group: 'akun', icon: ShieldCheck },
-    { id: 'audit', label: 'Session & Activity Log', group: 'akun', icon: ClipboardList },
-
-    { id: 'master-karyawan', label: 'Karyawan / Personel', group: 'master', icon: Users },
-    { id: 'master-supplier', label: 'Mitra Supplier', group: 'master', icon: Truck },
-    { id: 'master-customer', label: 'Toko / Customer', group: 'master', icon: PackageCheck },
-    { id: 'master-fruit-variants', label: 'Master Fruit Variants', group: 'master', icon: Award },
-    { id: 'master-chip-variants', label: 'Master Chip Variants', group: 'master', icon: Database },
-    { id: 'master-sku', label: 'Produk / SKU & BOM', group: 'master', icon: Database },
-    { id: 'master-mesin', label: 'Mesin Vacuum Frying', group: 'master', icon: Wrench },
-    { id: 'master-lokasi', label: 'Master Factory Locations', group: 'master', icon: Factory },
-
-    { id: 'pengadaan-po', label: 'Purchase Order / Pesanan', group: 'pengadaan', icon: Truck },
-    { id: 'pengadaan-penerimaan', label: 'Penerimaan Bahan Baku', group: 'pengadaan', icon: CheckCircle },
-    { id: 'supplier-scorecard', label: 'Supplier Performance Scorecard', group: 'pengadaan', icon: Award },
-
-    { id: 'input-produksi', label: 'Input Form Produksi', group: 'produksi', icon: Plus },
-    { id: 'production-approvals', label: 'Approval Produksi (Persetujuan)', group: 'produksi', icon: CheckCircle },
-    { id: 'batch-history', label: 'History Batch Produksi', group: 'produksi', icon: ClipboardList },
-    { id: 'production-planning', label: 'Rencana Produksi & Performance', group: 'produksi', icon: Calendar },
-    { id: 'compliance-service', label: 'Compliance & Service Hub', group: 'produksi', icon: ShieldCheck },
-    { id: 'attendance-management', label: 'Attendance & Geo-Fencing', group: 'produksi', icon: Users },
-
-    { id: 'inventory-stock', label: 'Real-time Stock Tracker', group: 'inventory', icon: Database },
-    { id: 'inventory-opname', label: 'Stock Opname & Adjs', group: 'inventory', icon: Sliders },
-
-    { id: 'cogs-component', label: 'COGS Standar vs Batch', group: 'cogs', icon: DollarSign },
-    { id: 'cogs-simulation', label: 'Simulasi Margin & Harga', group: 'cogs', icon: Sliders },
-
-    { id: 'sales-penjualan', label: 'Input Penjualan Toko', group: 'sales', icon: Plus },
-    { id: 'sales-suratjalan', label: 'Surat Jalan Digital', group: 'sales', icon: Truck },
-    { id: 'sales-batch-trace', label: 'Batches End-to-End Trace', group: 'sales', icon: ClipboardList },
-
-    { id: 'payroll-kalkulasi', label: 'Kalkulasi Gaji Borongan', group: 'payroll', icon: Users },
-    { id: 'payroll-slips', label: 'Download Slip Gaji', group: 'payroll', icon: ClipboardList },
-
-    { id: 'finance-cashbook', label: 'Petty Cash Management (Kas)', group: 'finance', icon: DollarSign },
-    { id: 'finance-cashbank', label: 'Cash & Bank Management', group: 'finance', icon: Wallet },
-    { id: 'finance-ap', label: 'Accounts Payable (Hutang)', group: 'finance', icon: FileSpreadsheet },
-    { id: 'finance-ar', label: 'Accounts Receivable (Piutang)', group: 'finance', icon: TrendingUp },
-    { id: 'finance-cashflow', label: 'Cash Flow & Finance HQ', group: 'finance', icon: Sliders },
-
-    { id: 'quality-compliance', label: 'Quality & Food Safety Audits', group: 'quality', icon: ShieldCheck },
-    { id: 'maintenance-sched', label: 'Jadwal & Biaya Maintenance', group: 'maintenance', icon: Wrench },
-
-    { id: 'opening-balance-setup', label: 'Opening Balance Setup', group: 'administration', icon: Sliders },
-    { id: 'transaction-revisions', label: 'Transaction Revisions Log', group: 'administration', icon: History },
-
-
-  ];
+  // Menu lists provided by unified configuration
+  const sidebarItems = SIDEBAR_ITEMS;
 
   if (!isLoggedIn) {
     return (
@@ -1451,6 +1471,17 @@ export default function App() {
           setCurrentUser(user);
           setSelectedLokasi(user.lokasiId);
           setIsLoggedIn(true);
+          const ua = navigator.userAgent || '';
+          const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(ua);
+          const isSmallScreen = window.innerWidth < 768;
+          const isMob = isSmallScreen || isMobileUA;
+          if (isMob) {
+            setActiveMenu('agridea-mobile');
+          } else if (user.role === 'Director' || user.role === 'Direktur HQ') {
+            setActiveMenu('executive-advisor');
+          } else {
+            setActiveMenu('dashboard-utama');
+          }
         }}
       />
     );
@@ -1459,268 +1490,98 @@ export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 flex" id="app-layout">
       {/* Dynamic Sidenav Sidebar */}
-      <aside className="w-[280px] bg-slate-900 text-slate-350 flex flex-col border-r border-slate-800 shrink-0 select-none overflow-y-auto" id="app-sidebar">
-        <div className="p-6 border-b border-slate-800 bg-slate-950/40">
-          <h1 className="text-lg font-bold tracking-tight text-emerald-400 font-display">Agridea Manufacturing</h1>
-          <p className="text-[10px] text-slate-400 mt-1 uppercase font-semibold tracking-wider">Control App</p>
+      {!isMobile && (
+        <aside className="w-[280px] bg-white text-slate-800 flex flex-col border-r border-slate-200 shrink-0 select-none overflow-y-auto" id="app-sidebar">
+        <div className="p-6 border-b border-slate-200 bg-[#F8FAFC]">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center font-display font-black text-white text-[13px] shadow-md shadow-green-600/20 shrink-0">A</div>
+            <div>
+              <h1 className="text-xs font-black tracking-tight text-slate-800 uppercase font-display leading-none">Agridea Mfg</h1>
+              <p className="text-[9px] text-green-600 font-bold uppercase tracking-wider block mt-1 font-sans leading-none">Intelligence Platform</p>
+            </div>
+          </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-3.5 text-xs font-medium">
-          {/* Group 1: Dashboards */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('dashboard')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">1. Dashboard &amp; Analisis</span>
-              {collapsedGroup.dashboard ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.dashboard && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => i.group === 'dashboard' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
+        <nav className="flex-1 p-4 space-y-3.5 text-xs font-semibold">
+          {SIDEBAR_GROUPS.map(group => {
+            // Check group-level permissions if restricted
+            if (
+              group.allowedRoles &&
+              !group.allowedRoles.includes(currentUser.role) &&
+              !['Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director'].includes(currentUser.role)
+            ) {
+              return null;
+            }
+
+            const groupKeys = group.matchGroups || [group.key];
+            const itemsInGroup = sidebarItems.filter(
+              item => groupKeys.includes(item.group) && isMenuAllowed(currentUser.role, item.id)
+            );
+
+            if (itemsInGroup.length === 0) return null;
+
+            const isCollapsed = collapsedGroup[group.key] ?? true;
+
+            return (
+              <div key={group.key} className="space-y-1">
+                <button
+                  onClick={() => toggleGroup(group.key)}
+                  className="flex items-center justify-between w-full px-3 py-2 text-slate-600 hover:text-slate-900 hover:bg-slate-50 rounded-lg transition-colors cursor-pointer"
+                >
+                  <span className="font-bold uppercase tracking-wider text-[9px] text-green-700 font-sans">
+                    {group.label}
+                  </span>
+                  {isCollapsed ? (
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                  )}
+                </button>
+                {!isCollapsed && (
+                  <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-100 ml-2">
+                    {itemsInGroup.map(item => {
+                      const Icon = item.icon;
+                      const isSel = activeMenu === item.id;
+                      return (
+                        <button
+                          key={item.id}
+                          onClick={() => setActiveMenu(item.id)}
+                          className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-150 cursor-pointer ${
+                            isSel
+                              ? 'bg-green-50 text-green-700 border-l-[3px] border-green-600 font-bold shadow-xs'
+                              : 'hover:bg-slate-50 hover:text-slate-900 text-slate-600'
+                          }`}
+                        >
+                          <Icon className={`w-3.5 h-3.5 shrink-0 ${isSel ? 'text-green-600' : 'text-slate-400'}`} />
+                          <span style={{ textAlign: 'left' }} className="text-left w-full truncate font-sans">
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-
-          {/* Group 2: Akun & Cabang */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('akun')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">2. Akun &amp; Cabang</span>
-              {collapsedGroup.akun ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.akun && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => i.group === 'akun' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Group 3: Master Data */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('master')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">3. Master Data</span>
-              {collapsedGroup.master ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.master && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => i.group === 'master' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Group 4: Pengadaan & Supplier */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('pengadaan')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">4. Pengadaan</span>
-              {collapsedGroup.pengadaan ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.pengadaan && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => i.group === 'pengadaan' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Group 5: Produksi Harian */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('produksi')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">5. Produksi Inti</span>
-              {collapsedGroup.produksi ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.produksi && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => i.group === 'produksi' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Group 6: Inventory */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('inventory')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">6. Inventory Tracker</span>
-              {collapsedGroup.inventory ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.inventory && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => i.group === 'inventory' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Group 7: COGS / HPP */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('cogs')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">7. COGS / HPP</span>
-              {collapsedGroup.cogs ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.cogs && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => i.group === 'cogs' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Group 8: Sales */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('sales')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">8. Sales &amp; Tracing</span>
-              {collapsedGroup.sales ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.sales && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => i.group === 'sales' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Group 9: Payroll & Finance */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('payroll')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">9. Payroll &amp; Keuangan</span>
-              {collapsedGroup.payroll ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.payroll && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => (i.group === 'payroll' || i.group === 'finance') && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Group 10: Quality & Maintenance */}
-          <div className="space-y-1">
-            <button onClick={() => toggleGroup('quality')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-              <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">10. Compliance &amp; Servis</span>
-              {collapsedGroup.quality ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-            </button>
-            {!collapsedGroup.quality && (
-              <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                {sidebarItems.filter(i => (i.group === 'quality' || i.group === 'maintenance') && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                  <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                    <item.icon className="w-3.5 h-3.5 shrink-0" />
-                    <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Administration Menu Group (Super Admin or HQ Finance) */}
-          {(currentUser?.role === 'Super Admin' || currentUser?.role === 'Finance HQ' || currentUser?.role === 'Finance') && (
-            <div className="space-y-1">
-              <button onClick={() => toggleGroup('administration')} className="flex items-center justify-between w-full px-3 py-2 text-slate-400 hover:text-white hover:bg-slate-800/50 rounded-lg transition-colors">
-                <span className="font-semibold uppercase tracking-wider text-[9px] text-slate-500">Administration</span>
-                {collapsedGroup.administration ? <ChevronRight className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
-              </button>
-              {!collapsedGroup.administration && (
-                <div className="pl-1.5 mt-1 space-y-1 border-l border-slate-800/80 ml-2">
-                  {sidebarItems.filter(i => i.group === 'administration' && isMenuAllowed(currentUser.role, i.id)).map(item => (
-                    <button key={item.id} onClick={() => setActiveMenu(item.id)} className={`flex items-center text-left space-x-2.5 w-full px-3 py-2 rounded-lg transition-all duration-200 ${activeMenu === item.id ? 'bg-slate-800 text-emerald-400 border-l-[3px] border-emerald-400 font-semibold shadow-sm' : 'hover:bg-slate-800/60 hover:text-white text-slate-300'}`}>
-                      <item.icon className="w-3.5 h-3.5 shrink-0" />
-                      <span style={{ textAlign: 'left' }} className="text-left w-full">{item.label}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-
+            );
+          })}
         </nav>
       </aside>
+      )}
 
       {/* Main Container */}
       <div className="flex-1 flex flex-col min-w-0" id="main-content-window">
         {/* Top Header */}
-        <header className="h-16 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between shrink-0 select-none shadow-xs" id="app-header">
-          <div className="flex items-center space-x-4">
-            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-              <Factory className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span>Lokasi Pabrik:</span>
-            </span>
-            <select
-              id="branch-context-dropdown"
-              value={selectedLokasi}
-              onChange={(e) => {
-                const isIsolated = ![
-                  'Super Admin',
-                  'Kepala Pabrik HQ',
-                  'Direktur HQ',
-                  'Director',
-                  'HQ Finance',
-                  'Finance HQ',
-                  'Finance',
-                  'HQ Production',
-                  'HQ Production Manager',
-                  'HR & Procurement',
-                  'HR & Procurement Manager',
-                  'Purchasing',
-                  'HQ Admin'
-                ].includes(currentUser.role);
-                if (!isIsolated) {
-                  setSelectedLokasi(e.target.value);
-                }
-              }}
-              disabled={![
-                'Super Admin',
-                'Kepala Pabrik HQ',
-                'Direktur HQ',
-                'Director',
-                'HQ Finance',
-                'Finance HQ',
-                'Finance',
-                'HQ Production',
-                'HQ Production Manager',
-                'HR & Procurement',
-                'HR & Procurement Manager',
-                'Purchasing',
-                'HQ Admin'
-              ].includes(currentUser.role)}
-              className="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 rounded-lg px-3 py-2 outline-none hover:bg-slate-100 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer font-sans disabled:opacity-75 disabled:cursor-not-allowed"
-            >
-              {lokasi
-                .filter(l => {
+        {!isMobile ? (
+          <header className="h-16 bg-white border-b border-slate-200/80 px-8 flex items-center justify-between shrink-0 select-none shadow-xs" id="app-header">
+            <div className="flex items-center space-x-4">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                <Factory className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Lokasi Pabrik:</span>
+              </span>
+              <select
+                id="branch-context-dropdown"
+                value={selectedLokasi}
+                onChange={(e) => {
                   const isIsolated = ![
                     'Super Admin',
                     'Kepala Pabrik HQ',
@@ -1736,53 +1597,181 @@ export default function App() {
                     'Purchasing',
                     'HQ Admin'
                   ].includes(currentUser.role);
-                  return !isIsolated || l.id === currentUser.lokasiId;
-                })
-                .map(l => (
-                  <option key={l.id} value={l.id}>{l.nama}</option>
-                ))}
-            </select>
-          </div>
-
-          <div className="flex items-center space-x-6">
-            {/* Simulation Notification icon in header */}
-            <div className="relative cursor-pointer hover:scale-105 transition-transform" onClick={() => setActiveMenu('audit')}>
-              <Bell className="w-5 h-5 text-slate-500 hover:text-slate-800" />
-              {notifications.filter(n => !n.dibaca).length > 0 && (
-                <span className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full w-4 h-4 text-[9px] font-bold text-center flex items-center justify-center font-mono">
-                  {notifications.filter(n => !n.dibaca).length}
-                </span>
-              )}
-            </div>
-
-            {/* Profile Dropdown context */}
-            <div className="h-6 border-r border-slate-200"></div>
-
-            <div className="flex items-center space-x-3">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center font-bold text-sm font-display">
-                {currentUser.namaLengkap.charAt(0)}
-              </div>
-              <div className="text-left text-xs select-none">
-                <span className="font-semibold text-slate-900 block leading-tight">{currentUser.namaLengkap}</span>
-                <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block mt-0.5">{currentUser.role}</span>
-              </div>
-              <button
-                onClick={() => {
-                  setIsLoggedIn(false);
-                  localStorage.removeItem('agridea_logged_in');
-                  logActivity('Auth', `Karyawan @${currentUser.username} (${currentUser.namaLengkap}) logged out.`);
+                  if (!isIsolated) {
+                    setSelectedLokasi(e.target.value);
+                  }
                 }}
-                className="text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded transition ml-2 cursor-pointer border border-slate-200"
-                title="Keluar dari sesi"
+                disabled={![
+                  'Super Admin',
+                  'Kepala Pabrik HQ',
+                  'Direktur HQ',
+                  'Director',
+                  'HQ Finance',
+                  'Finance HQ',
+                  'Finance',
+                  'HQ Production',
+                  'HQ Production Manager',
+                  'HR & Procurement',
+                  'HR & Procurement Manager',
+                  'Purchasing',
+                  'HQ Admin'
+                ].includes(currentUser.role)}
+                className="bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 rounded-lg px-3 py-2 outline-none hover:bg-slate-100 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition-all cursor-pointer font-sans disabled:opacity-75 disabled:cursor-not-allowed"
               >
-                Logout
-              </button>
+                {lokasi
+                  .filter(l => {
+                    const isIsolated = ![
+                      'Super Admin',
+                      'Kepala Pabrik HQ',
+                      'Direktur HQ',
+                      'Director',
+                      'HQ Finance',
+                      'Finance HQ',
+                      'Finance',
+                      'HQ Production',
+                      'HQ Production Manager',
+                      'HR & Procurement',
+                      'HR & Procurement Manager',
+                      'Purchasing',
+                      'HQ Admin'
+                    ].includes(currentUser.role);
+                    return !isIsolated || l.id === currentUser.lokasiId;
+                  })
+                  .map(l => (
+                    <option key={l.id} value={l.id}>{l.nama}</option>
+                  ))}
+              </select>
             </div>
-          </div>
-        </header>
+
+            <div className="flex items-center space-x-6">
+              {/* Simulation Notification icon in header */}
+              <div className="relative cursor-pointer hover:scale-105 transition-transform" onClick={() => setActiveMenu('audit')}>
+                <Bell className="w-5 h-5 text-slate-500 hover:text-slate-800" />
+                {notifications.filter(n => !n.dibaca).length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-rose-600 text-white rounded-full w-4 h-4 text-[9px] font-bold text-center flex items-center justify-center font-mono">
+                    {notifications.filter(n => !n.dibaca).length}
+                  </span>
+                )}
+              </div>
+
+              {/* Profile Dropdown context */}
+              <div className="h-6 border-r border-slate-200"></div>
+
+              <div className="flex items-center space-x-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 border border-emerald-200/60 flex items-center justify-center font-bold text-sm font-display">
+                  {currentUser.namaLengkap.charAt(0)}
+                </div>
+                <div className="text-left text-xs select-none">
+                  <span className="font-semibold text-slate-900 block leading-tight">{currentUser.namaLengkap}</span>
+                  <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wider block mt-0.5">{currentUser.role}</span>
+                </div>
+                <button
+                  onClick={() => {
+                    setIsLoggedIn(false);
+                    localStorage.removeItem('agridea_logged_in');
+                    logActivity('Auth', `Karyawan @${currentUser.username} (${currentUser.namaLengkap}) logged out.`);
+                  }}
+                  className="text-[10px] font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded transition ml-2 cursor-pointer border border-slate-200"
+                  title="Keluar dari sesi"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+        ) : (
+          <header className="fixed top-0 left-0 right-0 h-14 bg-slate-900 border-b border-slate-850 px-4 flex items-center justify-between z-45 select-none shadow-md">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowMobileMoreDrawer(true)}
+                className="p-1.5 hover:bg-slate-800 rounded bg-slate-950/50 border border-slate-800 text-slate-300"
+              >
+                <Menu className="w-5 h-5 text-slate-300" />
+              </button>
+              <div>
+                <h1 className="text-xs font-black font-display text-emerald-400 uppercase tracking-tight leading-none">Agridea Mfg</h1>
+                <span className="text-[8px] text-slate-400 font-mono block tracking-wider uppercase mt-0.5 truncate max-w-[80px]">{currentUser.role}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                id="mobile-branch-dropdown"
+                value={selectedLokasi}
+                onChange={(e) => {
+                  const isIsolated = ![
+                    'Super Admin',
+                    'Kepala Pabrik HQ',
+                    'Direktur HQ',
+                    'Director',
+                    'HQ Finance',
+                    'Finance HQ',
+                    'Finance',
+                    'HQ Production',
+                    'HQ Production Manager',
+                    'HR & Procurement',
+                    'HR & Procurement Manager',
+                    'Purchasing',
+                    'HQ Admin'
+                  ].includes(currentUser.role);
+                  if (!isIsolated) {
+                    setSelectedLokasi(e.target.value);
+                  }
+                }}
+                disabled={![
+                  'Super Admin',
+                  'Kepala Pabrik HQ',
+                  'Direktur HQ',
+                  'Director',
+                  'HQ Finance',
+                  'Finance HQ',
+                  'Finance',
+                  'HQ Production',
+                  'HQ Production Manager',
+                  'HR & Procurement',
+                  'HR & Procurement Manager',
+                  'Purchasing',
+                  'HQ Admin'
+                ].includes(currentUser.role)}
+                className="bg-slate-950/60 border border-slate-800 text-white font-bold rounded-lg text-[9px] px-2 py-1 outline-none font-sans disabled:opacity-75 disabled:cursor-not-allowed max-w-[100px] truncate"
+              >
+                {lokasi
+                  .filter(l => {
+                    const isIsolated = ![
+                      'Super Admin',
+                      'Kepala Pabrik HQ',
+                      'Direktur HQ',
+                      'Director',
+                      'HQ Finance',
+                      'Finance HQ',
+                      'Finance',
+                      'HQ Production',
+                      'HQ Production Manager',
+                      'HR & Procurement',
+                      'HR & Procurement Manager',
+                      'Purchasing',
+                      'HQ Admin'
+                    ].includes(currentUser.role);
+                    return !isIsolated || l.id === currentUser.lokasiId;
+                  })
+                  .map(l => (
+                    <option key={l.id} value={l.id}>{l.nama.replace('Pabrik ', '')}</option>
+                  ))}
+              </select>
+
+              <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono font-bold uppercase tracking-wider flex items-center gap-0.5 shrink-0">
+                <Wifi className="w-2.5 h-2.5 text-emerald-400" /> SYNCED
+              </span>
+
+              <div className="w-7 h-7 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold text-xs ring-1 ring-emerald-500/25 shrink-0">
+                {currentUser.namaLengkap?.charAt(0) || 'A'}
+              </div>
+            </div>
+          </header>
+        )}
 
         {/* Inner Content Viewer */}
-        <main className="flex-1 p-6 overflow-y-auto" id="app-screen-content">
+        <main className={`flex-1 overflow-y-auto ${isMobile ? 'pt-20 pb-24 px-4 w-full max-w-none' : 'p-6'}`} id="app-screen-content">
           {/* Load Dashboards components directly */}
           {activeMenu.startsWith('dashboard-') && (
             <div className="animate-fade-in text-xs">
@@ -3069,6 +3058,53 @@ export default function App() {
             </div>
           )}
 
+          {/* ===================== MASTER BILL of MATERIAL (BOM) ===================== */}
+          {activeMenu === 'master-bom' && (
+            <div className="space-y-6 animate-fade-in" id="screen-master-bom">
+              <BOMManagement
+                state={state}
+                setBom={setBom}
+                logActivity={logActivity}
+                currentUser={currentUser}
+              />
+            </div>
+          )}
+
+          {/* ===================== MASTER RECIPE & YIELD STANDARDS ===================== */}
+          {activeMenu === 'recipe-yield-standard' && (
+            <div className="space-y-6 animate-fade-in" id="screen-recipe-yield-standard">
+              <RecipeYieldStandards
+                state={state}
+                logActivity={logActivity}
+                currentUser={currentUser}
+              />
+            </div>
+          )}
+
+          {/* ===================== PRODUCTION ROUTING MASTER ===================== */}
+          {activeMenu === 'production-routing' && (
+            <div className="space-y-6 animate-fade-in" id="screen-production-routing">
+              <ProductionRouting
+                state={state}
+                logActivity={logActivity}
+                currentUser={currentUser}
+                initialTab="routing-master"
+              />
+            </div>
+          )}
+
+          {/* ===================== PRODUCTION SCHEDULING ENGINE ===================== */}
+          {activeMenu === 'production-scheduling' && (
+            <div className="space-y-6 animate-fade-in" id="screen-production-scheduling">
+              <ProductionRouting
+                state={state}
+                logActivity={logActivity}
+                currentUser={currentUser}
+                initialTab="scheduling"
+              />
+            </div>
+          )}
+
           {/* ===================== FORM PRODUKSI INTREGRATED ===================== */}
           {activeMenu === 'input-produksi' && (
             <div className="space-y-6 animate-fade-in" id="screen-input-produksi">
@@ -3208,9 +3244,116 @@ export default function App() {
             </div>
           )}
 
+          {/* ===================== INTER-FACTORY SUPPLY TRANSFER ===================== */}
+          {activeMenu === 'inventory-transfer' && (
+            <div className="animate-fade-in text-xs">
+              <InterFactoryTransfer state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== FULL BATCH TRACEABILITY ===================== */}
+          {activeMenu === 'quality-traceability' && (
+            <div className="animate-fade-in text-xs">
+              <BatchTraceability state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== PRODUCT RECALL CRISIS HUB ===================== */}
+          {activeMenu === 'quality-recall' && (
+            <div className="animate-fade-in text-xs">
+              <ProductRecall state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== HACCP DIGITAL COMPLIANCE ===================== */}
+          {activeMenu === 'quality-haccp' && (
+            <div className="animate-fade-in text-xs">
+              <HACCPManagement state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== COMMAND RISK DIRECTOR DASHBOARD ===================== */}
+          {activeMenu === 'dashboard-risk' && (
+            <div className="animate-fade-in text-xs">
+              <DirectorDashboard state={state} onNavigate={setActiveMenu} />
+            </div>
+          )}
+
+          {/* ===================== DEMAND PLANNING ===================== */}
+          {activeMenu === 'planning-demand' && (
+            <div className="animate-fade-in text-xs">
+              <DemandPlanning state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== MATERIAL REQUIREMENT PLANNING ===================== */}
+          {activeMenu === 'planning-mrp' && (
+            <div className="animate-fade-in text-xs">
+              <MRP state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== CAPACITY PLANNING ===================== */}
+          {activeMenu === 'planning-capacity' && (
+            <div className="animate-fade-in text-xs">
+              <CapacityPlanning state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== AI CONTROL TOWER ===================== */}
+          {activeMenu === 'executive-control-tower' && (
+            <div className="animate-fade-in text-xs">
+              <AIControlTower state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== AI EXECUTIVE ADVISOR ===================== */}
+          {activeMenu === 'executive-advisor' && (
+            <div className="animate-fade-in text-xs">
+              <AIExecutiveAdvisor state={state} logActivity={logActivity} currentUser={currentUser} />
+            </div>
+          )}
+
+          {/* ===================== GEMINI AI COPILOT & SEARCH GROUNDING ===================== */}
+          {activeMenu === 'gemini-copilot' && (
+            <div className="animate-fade-in text-xs">
+              <GeminiChatbot state={state} currentUser={currentUser} defaultRole="operations" />
+            </div>
+          )}
+
+          {/* ===================== GOOGLE CLOUD, DRIVE & SHEETS HUB ===================== */}
+          {activeMenu === 'google-cloud-hub' && (
+            <div className="animate-fade-in text-xs">
+              <GoogleCloudWorkspaceHub
+                batches={state?.batches || []}
+              />
+            </div>
+          )}
+
+          {/* ===================== GOOGLE MAPS FACILITY NETWORK ===================== */}
+          {activeMenu === 'maps-network' && (
+            <div className="animate-fade-in text-xs">
+              <GoogleMapsFacilityTracker state={state} defaultActiveTab="peta" />
+            </div>
+          )}
+
+          {/* ===================== HARVEST RADAR (GEMINI AI 150 KM) ===================== */}
+          {activeMenu === 'harvest-radar' && (
+            <div className="animate-fade-in text-xs">
+              <GoogleMapsFacilityTracker state={state} defaultActiveTab="rekomendasi-panen" />
+            </div>
+          )}
+
+          {/* ===================== AGRIDEA MOBILE PLATFORM (ALL ROLES) ===================== */}
+          {activeMenu === 'agridea-mobile' && (
+            <div className="animate-fade-in text-xs">
+              <AgrideaMobilePlatform state={state} logActivity={logActivity} currentUser={currentUser} onNavigate={setActiveMenu} />
+            </div>
+          )}
+
           {/* ===================== NOT IMPLEMENTED VIEWS: GENERIC LAYOUT TO ENSURE USABILITY ===================== */}
           {/* Automatically fallback show tables with interactive search for other menus to keep 100% of the PRD functional! */}
-          {!['dashboard-utama', 'dashboard-produksi', 'dashboard-inventory', 'dashboard-sales', 'dashboard-payroll', 'dashboard-cogs', 'dashboard-hq', 'session', 'signup', 'roles', 'audit', 'master-karyawan', 'master-sku', 'input-produksi', 'inventory-stock', 'cogs-component', 'sales-batch-trace', 'cogs-simulation', 'production-approvals', 'production-planning', 'compliance-service', 'attendance-management', 'users-list', 'supplier-scorecard', 'management-meeting-pack'].includes(activeMenu) && (
+          {!['dashboard-utama', 'dashboard-produksi', 'dashboard-inventory', 'dashboard-sales', 'dashboard-payroll', 'dashboard-cogs', 'dashboard-hq', 'session', 'signup', 'roles', 'audit', 'master-karyawan', 'master-sku', 'master-bom', 'recipe-yield-standard', 'production-routing', 'production-scheduling', 'input-produksi', 'inventory-stock', 'cogs-component', 'sales-batch-trace', 'cogs-simulation', 'production-approvals', 'production-planning', 'compliance-service', 'attendance-management', 'users-list', 'supplier-scorecard', 'management-meeting-pack', 'inventory-transfer', 'quality-traceability', 'quality-recall', 'quality-haccp', 'dashboard-risk', 'planning-demand', 'planning-mrp', 'planning-capacity', 'executive-control-tower', 'executive-advisor', 'agridea-mobile', 'gemini-copilot', 'google-cloud-hub', 'maps-network', 'harvest-radar'].includes(activeMenu) && (
             <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4 text-xs animate-fade-in" id="fallback-screen">
               <div className="flex justify-between items-center border-b pb-2">
                 <div>
@@ -4438,6 +4581,36 @@ export default function App() {
                       </table>
                     </div>
                   </div>
+                </div>
+              )}
+
+               {activeMenu === 'master-packaging' && (
+                <div id="screen-master-packaging-wrapper" className="animate-fade-in">
+                  <PackagingMasterManager
+                    packagingMaster={packagingMaster}
+                    setPackagingMaster={setPackagingMaster}
+                    logActivity={(module, desc) => logActivity(module, desc)}
+                  />
+                </div>
+              )}
+
+              {activeMenu === 'master-supporting' && (
+                <div id="screen-master-supporting-wrapper" className="animate-fade-in">
+                  <SupportingMaterialsManager
+                    supportingMaster={supportingMaster}
+                    setSupportingMaster={setSupportingMaster}
+                    logActivity={(module, desc) => logActivity(module, desc)}
+                  />
+                </div>
+              )}
+
+              {activeMenu === 'master-chemicals' && (
+                <div id="screen-master-chemicals-wrapper" className="animate-fade-in">
+                  <ChemicalsConsumablesManager
+                    chemicalsMaster={chemicalsMaster}
+                    setChemicalsMaster={setChemicalsMaster}
+                    logActivity={(module, desc) => logActivity(module, desc)}
+                  />
                 </div>
               )}
 
@@ -6254,7 +6427,28 @@ export default function App() {
                 </div>
               )}
 
+              {['finance-accounting', 'finance-budgeting', 'finance-workingcapital', 'finance-consolidated'].includes(activeMenu) && (
+                <div className="space-y-6">
+                  <MultiFactoryFinancialSystem
+                    state={state}
+                    currentUser={currentUser}
+                    activeMenu={activeMenu}
+                    onNavigate={setActiveMenu}
+                  />
+                </div>
+              )}
 
+              {['finance-opening-balance-wizard', 'finance-reconciliation', 'finance-opening-adjustment'].includes(activeMenu) && (
+                <div className="space-y-6">
+                  <OpeningBalanceWizard
+                    state={state}
+                    currentUser={currentUser}
+                    logActivity={logActivity}
+                    onNavigate={setActiveMenu}
+                    activeMenu={activeMenu}
+                  />
+                </div>
+              )}
 
               {activeMenu === 'opening-balance-setup' && (
                 <div className="space-y-6">
@@ -6271,6 +6465,10 @@ export default function App() {
                     setOpeningFinancial={setOpeningFinancial}
                     recalculateAll={recalculateAll}
                     logActivity={logActivity}
+                    packagingMaster={packagingMaster}
+                    supportingMaster={supportingMaster}
+                    chemicalsMaster={chemicalsMaster}
+                    setChipVariants={setChipVariants}
                   />
                 </div>
               )}
@@ -6796,6 +6994,251 @@ export default function App() {
           </div>
         )}
       </div>
+
+      {/* MOBILE MORE MENUS DRAWER OVERLAY */}
+      {isMobile && showMobileMoreDrawer && (
+        <div className="fixed inset-0 z-[10000] flex bg-slate-900/60 backdrop-blur-xs animate-fade-in" id="mobile-more-drawer-underlay" onClick={() => setShowMobileMoreDrawer(false)}>
+          <div 
+            className="mr-auto w-[82vw] max-w-[340px] h-full bg-slate-950 text-slate-300 shadow-2xl p-4 flex flex-col justify-between animate-slide-right overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="space-y-6">
+              {/* Drawer Branding Header */}
+              <div className="flex justify-between items-center border-b border-slate-800 pb-3 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <Factory className="w-5 h-5 text-emerald-400" />
+                  <div>
+                    <h4 className="font-extrabold text-white text-xs leading-none uppercase">Agridea Menu</h4>
+                    <span className="text-[8px] text-slate-400 font-mono tracking-widest mt-1 block">ROLES INTEGRATOR</span>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowMobileMoreDrawer(false)}
+                  className="p-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-slate-400 hover:text-white pointer-events-auto"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Local Search inside Drawer */}
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                  <Search className="h-3.5 w-3.5 text-slate-500" />
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search menu..."
+                  value={mobileSearchQuery}
+                  onChange={(e) => setMobileSearchQuery(e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-800 text-white placeholder-slate-500 text-xs rounded-xl py-2 pl-9 pr-4 focus:ring-1 focus:ring-emerald-400 focus:outline-none focus:border-transparent"
+                />
+                {mobileSearchQuery && (
+                  <button onClick={() => setMobileSearchQuery('')} className="absolute inset-y-0 right-0 pr-3 flex items-center text-xs text-slate-400 font-bold">✕</button>
+                )}
+              </div>
+
+              {/* Render Permitted Sidebar Categories */}
+              <div className="space-y-4">
+                {SIDEBAR_GROUPS.map(group => {
+                  if (
+                    group.allowedRoles &&
+                    !group.allowedRoles.includes(currentUser.role) &&
+                    !['Super Admin', 'Kepala Pabrik HQ', 'Direktur HQ', 'Director'].includes(currentUser.role)
+                  ) {
+                    return null;
+                  }
+
+                  const groupKeys = group.matchGroups || [group.key];
+                  // Filter items inside this group that are allowed
+                  const items = sidebarItems.filter(item => groupKeys.includes(item.group) && isMenuAllowed(currentUser.role, item.id) && (
+                    !mobileSearchQuery || item.label.toLowerCase().includes(mobileSearchQuery.toLowerCase())
+                  ));
+                  if (items.length === 0) return null;
+
+                  return (
+                    <div key={group.key} className="space-y-1.5">
+                      <span className="text-[9px] font-mono tracking-wider text-slate-500 block uppercase font-bold">{group.label}</span>
+                      <div className="grid grid-cols-1 gap-1">
+                        {items.map(item => {
+                          const Icon = item.icon;
+                          let isSel = activeMenu === item.id;
+                          return (
+                            <button
+                              key={item.id}
+                              onClick={() => {
+                                setActiveMenu(item.id);
+                                setShowMobileMoreDrawer(false);
+                                setMobileSearchQuery('');
+                              }}
+                              className={`flex items-center gap-2 px-3 py-2 text-[11px] rounded-lg transition-all text-left ${isSel ? 'bg-emerald-500 text-slate-950 font-black' : 'hover:bg-slate-900 text-slate-400 hover:text-white'}`}
+                            >
+                              <Icon className="w-4 h-4 shrink-0" />
+                              <span className="truncate">{item.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Connected User Sesi & Logout */}
+            <div className="border-t border-slate-850 pt-4 mt-6 text-center space-y-2">
+              <div className="text-[10px] text-slate-400 font-medium leading-relaxed block">
+                Masuk sebagai: <strong className="text-white">@{currentUser.username}</strong> ({currentUser.namaLengkap})
+              </div>
+              <button
+                onClick={() => {
+                  setIsLoggedIn(false);
+                  localStorage.removeItem('agridea_logged_in');
+                  logActivity('Auth', `Karyawan @${currentUser.username} (${currentUser.namaLengkap}) logged out via mobile drawer.`);
+                }}
+                className="w-full bg-slate-900 hover:bg-rose-950/50 text-slate-300 font-extrabold text-[10px] py-2 px-3 rounded-xl border border-slate-800 transition cursor-pointer"
+              >
+                Keluar dari Sesi (Logout)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MOBILE AI ASSISTANT BOTTOM SHEET CHAT */}
+      {isMobile && showMobileAiChat && (
+        <div className="fixed inset-0 z-[10000] flex bg-slate-900/60 backdrop-blur-xs animate-fade-in" id="mobile-ai-sheet-underlay" onClick={() => setShowMobileAiChat(false)}>
+          <div 
+            className="mt-auto w-full bg-slate-950 border-t border-slate-850 rounded-t-3xl max-h-[85vh] p-4 flex flex-col justify-between animate-slide-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex justify-between items-center border-b border-slate-850 pb-3 mb-3 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center text-teal-400">
+                  <Brain className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-extrabold text-white text-xs">Agridea AI Assistant</h4>
+                  <span className="text-[8px] text-slate-400 font-mono tracking-widest uppercase block mt-0.5">Mobile Intelligence Copilot</span>
+                </div>
+              </div>
+              <button 
+                onClick={() => setShowMobileAiChat(false)}
+                className="p-1 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full text-slate-400 hover:text-white pointer-events-auto"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Chat History Messages */}
+            <div className="flex-1 overflow-y-auto space-y-3 py-2 pr-1 max-h-[350px] min-h-[220px]">
+              {mobileChatHistory.map((m, idx) => (
+                <div key={idx} className={`flex ${m.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-xs leading-relaxed font-sans ${m.sender === 'user' ? 'bg-emerald-500 text-slate-950 font-semibold rounded-br-none' : 'bg-slate-900 text-slate-300 rounded-bl-none border border-slate-800/80'}`}>
+                    {m.text}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Actions Shortcuts inside Assistant Chat */}
+            <div className="py-2.5 border-t border-slate-900 space-y-1.5 shrink-0">
+              <span className="text-[8px] font-mono text-slate-500 tracking-wider font-extrabold uppercase">Pertanyaan Rekomendasi:</span>
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-1 invisible-scrollbar">
+                {[
+                  'Uji Yield Peeling',
+                  'Alokasi Safety Stok Kemasan',
+                  'Analisis SKU Teruntung',
+                  'Risiko Hazard Gas SSP'
+                ].map(label => (
+                  <button
+                    key={label}
+                    onClick={() => {
+                      setMobileChatInput(label);
+                    }}
+                    className="shrink-0 bg-slate-900 hover:bg-slate-800 border border-slate-800 rounded-full px-2.5 py-1 text-[9px] text-emerald-400 font-bold transition-all cursor-pointer whitespace-nowrap"
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Chat Input Field footer */}
+            <div className="flex items-center gap-2 pt-2 border-t border-slate-900 shrink-0">
+              <input
+                type="text"
+                placeholder="Ketik pertanyaan atau klik rekomendasi..."
+                value={mobileChatInput}
+                onChange={(e) => setMobileChatInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleMobileAiSubmit(); }}
+                className="flex-1 bg-slate-900 border border-slate-850 text-white rounded-xl py-2 px-3 focus:outline-none focus:ring-1 focus:ring-emerald-400 text-xs placeholder-slate-500"
+              />
+              <button
+                onClick={handleMobileAiSubmit}
+                className="bg-emerald-500 text-slate-950 p-2 rounded-xl border border-emerald-400 hover:bg-emerald-400 transition"
+              >
+                <Send className="w-4 h-4 font-black text-slate-950" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MOBILE FLOATING AI ASSISTANT FAB BUTTON */}
+      {isMobile && !showMobileAiChat && (
+        <button
+          id="mobile-floating-ai-fab"
+          onClick={() => setShowMobileAiChat(true)}
+          className="fixed bottom-20 right-4 z-[99] bg-gradient-to-tr from-emerald-500 to-teal-600 text-white font-bold p-3.5 rounded-full shadow-2xl border border-emerald-400 hover:scale-105 transition-all flex items-center justify-center animate-bounce"
+        >
+          <Brain className="w-6 h-6 text-slate-950 font-black" />
+          <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-300"></span>
+          </span>
+        </button>
+      )}
+
+      {/* MOBILE BOTTOM NAVIGATION BAR */}
+      {isMobile && (
+        <nav className="fixed bottom-0 left-0 right-0 h-16 bg-slate-950 border-t border-slate-900 flex items-center justify-around px-2 z-[99] select-none shadow-2xl">
+          {[
+            { id: 'dashboard-utama', label: 'Home', icon: Sliders },
+            { id: 'input-produksi', label: 'Production', icon: PlusCircle },
+            { id: 'inventory-stock', label: 'Inventory', icon: Database },
+            { id: 'production-approvals', label: 'Approvals', icon: CheckCircle },
+            { id: 'agridea-mobile', label: 'Mobile Hub', icon: Smartphone }
+          ].map(tab => {
+            const Icon = tab.icon;
+            let isAct = activeMenu === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  setActiveMenu(tab.id);
+                  setShowMobileMoreDrawer(false);
+                }}
+                className={`flex flex-col items-center justify-center w-12 py-1 transition-all ${isAct ? 'text-emerald-400 scale-105 font-bold' : 'text-slate-500 hover:text-slate-300'}`}
+              >
+                <Icon className={`w-5 h-5 ${isAct ? 'text-emerald-400 font-extrabold' : 'text-slate-500'}`} />
+                <span className="text-[9px] font-sans font-bold tracking-tight mt-0.5 whitespace-nowrap">{tab.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Combined Drawer tab for More */}
+          <button
+            onClick={() => {
+              setShowMobileMoreDrawer(true);
+            }}
+            className="flex flex-col items-center justify-center w-12 py-1 transition-all text-slate-500 hover:text-slate-350"
+          >
+            <Menu className="w-5 h-5 text-slate-500" />
+            <span className="text-[9px] font-sans font-bold tracking-tight mt-0.5 whitespace-nowrap">More</span>
+          </button>
+        </nav>
+      )}
     </div>
   );
 }

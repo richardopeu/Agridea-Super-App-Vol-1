@@ -18,7 +18,10 @@ import {
   CheckCircle,
   Truck,
   RotateCcw,
-  Maximize2
+  Maximize2,
+  Activity,
+  Sparkles,
+  Brain
 } from 'lucide-react';
 import {
   AreaChart,
@@ -43,7 +46,7 @@ import YieldLossDashboard from './YieldLossDashboard';
 import MachineUtilizationDashboard from './MachineUtilizationDashboard';
 import ProfitabilityDashboard from './ProfitabilityDashboard';
 import StrategicControlCenter from './StrategicControlCenter';
-import { Sparkles, Cpu, Wrench } from 'lucide-react';
+import { Cpu, Wrench } from 'lucide-react';
 
 interface DashboardsProps {
   state: any;
@@ -79,6 +82,7 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
   const branchSales = getBranchData(state.sales);
   const branchPettyCash = getBranchData(state.pettyCash);
   const branchPeelingLogs = getBranchData(state.peelingLogs);
+  const branchFreezingLogs = getBranchData(state.freezingLogs || []);
   const branchFryingLogs = getBranchData(state.fryingLogs);
   const branchPackingLogs = getBranchData(state.packingLogs);
   const branchNotifications = getBranchData(state.notifications);
@@ -123,6 +127,103 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
     { name: 'Produk Jadi (Terkemas)', value: branchStocks.filter(s => s.kategori === 'Produk Jadi').reduce((sum, s) => sum + s.qty * 11200, 0) },
     { name: 'Packing & Penolong', value: branchStocks.filter(s => s.kategori === 'Packing Material').reduce((sum, s) => sum + s.qty * (s.unit === 'liter' ? 16000 : 500), 0) },
   ];
+
+  const getInventoryCategoryDetails = () => {
+    const categoriesList = [
+      { id: 'fresh-fruit', name: 'Fresh Fruit (Bahan Baku)', unit: 'kg', price: 12000 },
+      { id: 'frozen', name: 'Frozen (WIP - Frozen)', unit: 'kg', price: 15000 },
+      { id: 'chips', name: 'Chips (WIP - Unpacked)', unit: 'kg', price: 18000 },
+      { id: 'finished-goods', name: 'Finished Goods (Produk Jadi)', unit: 'pcs', price: 11200 },
+      { id: 'packaging-materials', name: 'Packaging Materials', unit: 'pcs', price: 500 },
+      { id: 'supporting-materials', name: 'Supporting Materials', unit: 'Liter/Unit', price: 16000 },
+      { id: 'production-consumables', name: 'Production Consumables', unit: 'Tabung/Unit', price: 140000 }
+    ];
+
+    return categoriesList.map(cat => {
+      let bBalance = 0;
+      let incoming = 0;
+      let outgoing = 0;
+      let ending = 0;
+
+      const opInvItems = (state.openingInventory || []).filter((op: any) => !selectedLokasi || op.lokasiId === selectedLokasi);
+      const activeBranchStocks = branchStocks;
+
+      if (cat.id === 'fresh-fruit') {
+        bBalance = opInvItems
+          .filter((op: any) => op.inventoryType === 'Raw Material' || op.inventoryType === 'Bahan Baku')
+          .reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0) || 2500;
+        incoming = branchPenerimaan.reduce((s: number, item: any) => s + (item.beratDiterimaKg || 0), 0);
+        outgoing = branchPeelingLogs.reduce((s: number, item: any) => s + (item.bahanMasukKg || 0), 0);
+        ending = activeBranchStocks.filter((s: any) => s.kategori === 'Bahan Baku').reduce((s: number, item: any) => s + (item.qty || 0), 0);
+      }
+      else if (cat.id === 'frozen') {
+        bBalance = opInvItems
+          .filter((op: any) => op.inventoryType === 'Frozen')
+          .reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0) || 183;
+        incoming = branchFreezingLogs.reduce((s: number, item: any) => s + (item.beratFrozenOutput || 0), 0);
+        outgoing = branchFryingLogs.reduce((s: number, item: any) => s + (item.beratFrozenMasukKg || 0), 0);
+        ending = activeBranchStocks.filter((s: any) => s.key.includes('Frozen')).reduce((s: number, item: any) => s + (item.qty || 0), 0);
+      }
+      else if (cat.id === 'chips') {
+        bBalance = opInvItems
+          .filter((op: any) => op.inventoryType === 'Chips')
+          .reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0) || 5.2;
+        incoming = branchFryingLogs.reduce((s: number, item: any) => s + (item.beratHasilKeripikKg || 0), 0);
+        outgoing = branchPackingLogs.reduce((s: number, item: any) => s + (item.beratMasukKeripikKg || 0), 0);
+        ending = activeBranchStocks.filter((s: any) => s.key.includes('Unpacked') || s.key.includes('Chips')).reduce((s: number, item: any) => s + (item.qty || 0), 0);
+      }
+      else if (cat.id === 'finished-goods') {
+        bBalance = opInvItems
+          .filter((op: any) => op.inventoryType === 'Finished Goods')
+          .reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0) || 2520;
+        incoming = branchPackingLogs.reduce((s: number, item: any) => s + (item.totalPcsDihasilkan || 0), 0);
+        outgoing = branchSales.reduce((s: number, inv: any) => {
+          const itemQty = inv.items?.reduce((ttl: number, it: any) => ttl + (it.qtyPcs || 0), 0) || 0;
+          return s + itemQty;
+        }, 0);
+        ending = activeBranchStocks.filter((s: any) => s.kategori === 'Produk Jadi').reduce((s: number, item: any) => s + (item.qty || 0), 0);
+      }
+      else if (cat.id === 'packaging-materials') {
+        bBalance = opInvItems
+          .filter((op: any) => op.inventoryType === 'Packaging & Supporting Materials' && op.materialCategory === 'Packaging Materials')
+          .reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0) || 22050;
+        incoming = 0;
+        outgoing = branchPackingLogs.reduce((s: number, item: any) => s + (item.pouchDigunakan || 0) + (item.boxDigunakan || 0), 0);
+        ending = activeBranchStocks.filter((s: any) => s.kategori === 'Packing Material').reduce((s: number, item: any) => s + (item.qty || 0), 0);
+      }
+      else if (cat.id === 'supporting-materials') {
+        bBalance = opInvItems
+          .filter((op: any) => op.inventoryType === 'Packaging & Supporting Materials' && op.materialCategory === 'Supporting Materials')
+          .reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0) || 380;
+        incoming = 0;
+        outgoing = branchFryingLogs.reduce((s: number, item: any) => s + (item.minyakDigunakanLiter || 0), 0);
+        ending = activeBranchStocks.filter((s: any) => s.kategori === 'Supporting Materials').reduce((s: number, item: any) => s + (item.qty || 0), 0);
+      }
+      else if (cat.id === 'production-consumables') {
+        bBalance = opInvItems
+          .filter((op: any) => op.inventoryType === 'Packaging & Supporting Materials' && op.materialCategory === 'Production Consumables')
+          .reduce((sum: number, item: any) => sum + Number(item.qty || 0), 0) || 12;
+        incoming = 0;
+        outgoing = 0;
+        ending = activeBranchStocks.filter((s: any) => s.kategori === 'Production Consumables').reduce((s: number, item: any) => s + (item.qty || 0), 0);
+      }
+
+      if (ending <= 0 && bBalance > 0) {
+        ending = Math.max(0, bBalance + incoming - outgoing);
+      }
+
+      return {
+        ...cat,
+        bBalance,
+        incoming,
+        outgoing,
+        ending,
+        value: ending * cat.price
+      };
+    });
+  };
+
+  const detailedInventoryRows = getInventoryCategoryDetails();
 
   const COLORS = ['#10B981', '#3B82F6', '#F59E0B', '#8B5CF6', '#EF4444'];
 
@@ -170,15 +271,15 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
   return (
     <div className="flex flex-col space-y-6" id="dashboards-container">
       {/* Tab Navigation inside Dashboard */}
-      <div className="flex items-center justify-between border-b border-slate-200/65 pb-3 flex-wrap gap-3" id="dashboards-tabs-row">
-        <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center justify-between border-b border-slate-200/60 pb-4 flex-wrap gap-4" id="dashboards-tabs-row">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             id="tab-dashboard-utama-btn"
             onClick={() => setActiveSubTab('utama')}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
               activeSubTab === 'utama'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-green-600 text-white shadow-md shadow-green-600/10'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-700'
             }`}
           >
             Dashboard Utama
@@ -186,10 +287,10 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
           <button
             id="tab-dashboard-produksi-btn"
             onClick={() => setActiveSubTab('produksi')}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
               activeSubTab === 'produksi'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-green-600 text-white shadow-md shadow-green-600/10'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-700'
             }`}
           >
             Dashboard Produksi
@@ -197,10 +298,10 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
           <button
             id="tab-dashboard-inventory-btn"
             onClick={() => setActiveSubTab('inventory')}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
               activeSubTab === 'inventory'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-green-600 text-white shadow-md shadow-green-600/10'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-700'
             }`}
           >
             Dashboard Inventory
@@ -208,10 +309,10 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
           <button
             id="tab-dashboard-sales-btn"
             onClick={() => setActiveSubTab('sales')}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
               activeSubTab === 'sales'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-green-600 text-white shadow-md shadow-green-600/10'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-700'
             }`}
           >
             Dashboard Sales
@@ -219,10 +320,10 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
           <button
             id="tab-dashboard-payroll-btn"
             onClick={() => setActiveSubTab('payroll')}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
               activeSubTab === 'payroll'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-green-600 text-white shadow-md shadow-green-600/10'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-700'
             }`}
           >
             Dashboard Payroll
@@ -230,183 +331,425 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
           <button
             id="tab-dashboard-cogs-btn"
             onClick={() => setActiveSubTab('cogs')}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
               activeSubTab === 'cogs'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-green-600 text-white shadow-md shadow-green-600/10'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-700'
             }`}
           >
-            Dashboard COGS &amp; Margin
+            Dashboard COGS
           </button>
           <button
             id="tab-dashboard-hq-btn"
             onClick={() => setActiveSubTab('hq')}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+            className={`px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 border cursor-pointer ${
               activeSubTab === 'hq'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-[#0F172A] border-slate-900 text-white'
+                : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
             }`}
           >
-            Dashboard HQ (Multi-Branch)
+            Multi-Branch HQ
           </button>
           <button
             id="tab-dashboard-profitability-btn"
             onClick={() => setActiveSubTab('profitability')}
-            className={`px-4 py-2 text-xs font-semibold uppercase tracking-wider rounded-lg transition-all duration-200 ${
+            className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all duration-200 cursor-pointer ${
               activeSubTab === 'profitability'
-                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/10'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 hover:text-slate-900'
+                ? 'bg-green-600 text-white shadow-md shadow-green-600/10'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-green-50 hover:text-green-700'
             }`}
           >
             Profitability Analysis
           </button>
         </div>
-        <div className="flex items-center space-x-2 text-xs font-mono bg-slate-900 text-slate-100 px-3 py-1.5 rounded-lg shadow-sm">
-          <Factory className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="flex items-center gap-1.5 text-[10px] bg-[#F1F5F9] dark:bg-[#1E293B] px-3 py-1.5 rounded-lg border border-[#E2E8F0] dark:border-[#334155] font-semibold text-slate-600 dark:text-slate-350 select-none">
+          <Factory className="w-3.5 h-3.5 text-green-600" />
           <span>Active Context: {activeSubTab === 'hq' ? 'National Global HQ' : activeBranchName}</span>
         </div>
       </div>
 
-      {/* ======================= SUB TAB: UTAMA ======================= */}
+      {/* ======================= SUB TAB: UTAMA (Redesigned Premium Executive Dashboard) ======================= */}
       {activeSubTab === 'utama' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in" id="dashboard-utama-content">
-          {/* Key Metrics Cards */}
-          <div 
-            onClick={() => onNavigate?.('pengadaan-penerimaan')}
-            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 hover:shadow-md transition-all duration-150"
-            title="Klik untuk melihat Detail Penerimaan Bahan"
-          >
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Total Penerimaan Bahan</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">{totalBahanMasuk.toLocaleString('id-ID')} kg</h3>
-              <p className="text-xs text-emerald-600 font-medium flex items-center mt-1">
-                <TrendingUp className="w-3 h-3 mr-0.5" /> +12% vs Minggu lalu
-              </p>
-            </div>
-            <div className="p-3 bg-indigo-50 text-indigo-600 rounded-lg">
-              <Package className="w-6 h-6" />
-            </div>
-          </div>
-
-          <div 
-            onClick={() => onNavigate?.('inventory-stock')}
-            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 hover:shadow-md transition-all duration-150"
-            title="Klik untuk melihat Real-time Stock Tracker"
-          >
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Stok Bahan Baku Segar</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">{rawFruitStock.toLocaleString('id-ID')} kg</h3>
-              {rawFruitStock < 1000 ? (
-                <p className="text-xs text-amber-600 font-medium flex items-center mt-1">
-                  <AlertTriangle className="w-3.5 h-3.5 mr-0.5" /> Restock disarankan
+        <div className="space-y-6 animate-fade-in" id="dashboard-utama-content">
+          
+          {/* Executive AI Summary Banner */}
+          <div className="p-5 rounded-2xl bg-[#0F172A] text-white border border-slate-800 shadow-xl relative overflow-hidden flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-green-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3 pointer-events-none"></div>
+            <div className="relative z-10 flex items-start gap-3.5">
+              <div className="w-10 h-10 bg-green-600/25 border border-green-500/30 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                <Brain className="w-5 h-5 text-green-400" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase font-mono tracking-widest text-[#22C55E] font-bold">Executive Assistant Advisor</span>
+                  <span className="px-2 py-0.5 rounded-full bg-green-500/10 border border-green-500/20 text-[#22C55E] text-[9px] font-mono font-bold leading-none">Context Grounded</span>
+                </div>
+                <h4 className="text-sm font-bold text-white tracking-tight">AI Executive Summary: Pabrik Beroperasi Optimal</h4>
+                <p className="text-slate-300 leading-relaxed text-[11px] max-w-3xl">
+                  Evaluasi bulan berjalan mengonfirmasi margin laba kotor rata-rata bertahan stabil di level <strong>43.5%</strong>. Hasil panen/rendemen kupas apel Wonosobo berhasil mencapai <strong>{avgPeelingYield}%</strong>, namun pasokan pisang segar dari wilayah Dampit terdeteksi melambat 2.5 jam di logistik sela-sela operasional.
                 </p>
-              ) : (
-                <p className="text-xs text-emerald-600 font-medium flex items-center mt-1 w-full">
-                  <CheckCircle className="w-3.5 h-3.5 mr-0.5 text-emerald-500" /> Kadar stok aman
+              </div>
+            </div>
+            <div className="relative z-10 flex gap-2 self-end md:self-auto shrink-0">
+              <button 
+                onClick={() => onNavigate?.('audit')} 
+                className="bg-transparent hover:bg-slate-800 text-slate-300 font-bold px-3 py-2 rounded-lg transition border border-slate-700 cursor-pointer shrink-0 text-xs"
+              >
+                Log Rekonsiliasi
+              </button>
+              <button 
+                onClick={() => onNavigate?.('supplier-scorecard')} 
+                className="bg-green-600 hover:bg-green-700 text-white font-bold px-3 py-2 rounded-lg transition shadow-md shadow-green-600/15 cursor-pointer shrink-0 text-xs"
+              >
+                Scorecard Vendor
+              </button>
+            </div>
+          </div>
+
+          {/* Key Metrics Cards (Modern High-End Cards) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            
+            {/* Omzet / Revenue Card */}
+            <div 
+              onClick={() => onNavigate?.('sales-penjualan')}
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100/45 flex items-center justify-between cursor-pointer hover:border-green-300 hover:shadow-lg transition-all duration-150 group"
+              title="Klik untuk melihat Detail Penjualan"
+            >
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-sans">Omzet Penjualan</p>
+                <h3 className="text-xl font-bold font-mono tracking-tight text-slate-900 mt-1.5">Rp {totalSalesRevenue.toLocaleString('id-ID')}</h3>
+                <p className="text-[10px] text-green-600 font-semibold flex items-center mt-1 font-sans">
+                  <TrendingUp className="w-3.5 h-3.5 mr-0.5 text-green-500" /> +22.4% vs target bulanan
                 </p>
-              )}
+              </div>
+              <div className="p-3 bg-green-50 text-green-600 rounded-xl group-hover:bg-green-100 transition-colors shrink-0">
+                <DollarSign className="w-5 h-5 shrink-0" />
+              </div>
             </div>
-            <div className="p-3 bg-emerald-50 text-emerald-600 rounded-lg">
-              <TrendingUp className="w-6 h-6" />
+
+            {/* Simulated Net Profit Card */}
+            <div 
+              onClick={() => onNavigate?.('cogs-simulation')}
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100/45 flex items-center justify-between cursor-pointer hover:border-green-300 hover:shadow-lg transition-all duration-150 group"
+              title="Simulator Laba Bersih & COGS"
+            >
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-sans">Estimasi Laba Kotor</p>
+                <h3 className="text-xl font-bold font-mono tracking-tight text-slate-900 mt-1.5">Rp {Math.floor(totalSalesRevenue * 0.435).toLocaleString('id-ID')}</h3>
+                <p className="text-[10px] text-green-600 font-semibold flex items-center mt-1 font-sans">
+                  <TrendingUp className="w-3.5 h-3.5 mr-0.5 text-green-500" /> Margin stabil di 43.5%
+                </p>
+              </div>
+              <div className="p-3 bg-green-50 text-green-600 rounded-xl group-hover:bg-green-100 transition-colors shrink-0">
+                <Percent className="w-5 h-5 shrink-0" />
+              </div>
             </div>
+
+            {/* Raw Material Stocks Card */}
+            <div 
+              onClick={() => onNavigate?.('inventory-stock')}
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100/45 flex items-center justify-between cursor-pointer hover:border-green-300 hover:shadow-lg transition-all duration-150 group"
+              title="Klik untuk stok Real-time"
+            >
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-sans">Stok Bahan Baku Segar</p>
+                <h3 className="text-xl font-bold font-mono tracking-tight text-slate-900 mt-1.5">{rawFruitStock.toLocaleString('id-ID')} Kg</h3>
+                {rawFruitStock < 1000 ? (
+                  <p className="text-[10px] text-amber-600 font-semibold flex items-center mt-1 font-sans">
+                    <AlertTriangle className="w-3.5 h-3.5 mr-0.5 text-amber-500" /> Restock disarankan
+                  </p>
+                ) : (
+                  <p className="text-[10px] text-green-600 font-semibold flex items-center mt-1 font-sans">
+                    <CheckCircle className="w-3.5 h-3.5 mr-0.5 text-green-500" /> Ketersediaan aman
+                  </p>
+                )}
+              </div>
+              <div className="p-3 bg-green-50 text-green-600 rounded-xl group-hover:bg-green-100 transition-colors shrink-0">
+                <Package className="w-5 h-5 shrink-0" />
+              </div>
+            </div>
+
+            {/* Average Process Yield Rates Card */}
+            <div 
+              onClick={() => onNavigate?.('recipe-yield-standard')}
+              className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100/45 flex items-center justify-between cursor-pointer hover:border-green-300 hover:shadow-lg transition-all duration-150 group"
+              title="Detail Parameter Standar Rendemen"
+            >
+              <div>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest font-sans">Efisiensi Proses (Yield)</p>
+                <h3 className="text-xl font-bold font-mono tracking-tight text-slate-900 mt-1.5">{avgPeelingYield}% / {avgFryingYield}%</h3>
+                <p className="text-[10px] text-slate-500 mt-1 font-mono">Peeling / Vacuum Frying</p>
+              </div>
+              <div className="p-3 bg-green-50 text-green-600 rounded-xl group-hover:bg-green-100 transition-colors shrink-0">
+                <Activity className="w-5 h-5 shrink-0" />
+              </div>
+            </div>
+
           </div>
 
-          <div 
-            onClick={() => onNavigate?.('sales-penjualan')}
-            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 hover:shadow-md transition-all duration-150"
-            title="Klik untuk melihat Input Penjualan Toko"
-          >
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Omzet Penjualan</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">Rp {totalSalesRevenue.toLocaleString('id-ID')}</h3>
-              <p className="text-xs text-emerald-600 font-semibold flex items-center mt-1">
-                <TrendingUp className="w-3 h-3 mr-0.5" /> +22.4% vs target bulanan
-              </p>
+          {/* Section: 5 Factory Active Status Grid (Traffic Light Control Deck) */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100/45 space-y-4">
+            <div className="flex items-center justify-between border-b pb-3 border-slate-100">
+              <div>
+                <h4 className="text-sm font-bold text-slate-900">Status Kendali &amp; Kapasitas 5 Unit Pabrik</h4>
+                <p className="text-[10px] text-slate-400">Monitoring real-time kapasitas, inventory, yield (rendemen) dan keuangan petty cash cabang.</p>
+              </div>
+              <span className="text-[9px] font-mono tracking-widest uppercase font-bold text-slate-400 bg-slate-50 px-2.5 py-1 rounded border border-slate-100 select-none">Consolidated Control Link</span>
             </div>
-            <div className="p-3 bg-amber-50 text-amber-600 rounded-lg">
-              <DollarSign className="w-6 h-6" />
-            </div>
-          </div>
 
-          <div 
-            onClick={() => onNavigate?.('batch-history')}
-            className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between cursor-pointer hover:bg-slate-50 hover:shadow-md transition-all duration-150"
-            title="Klik untuk melihat Riwayat Batch Produksi"
-          >
-            <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Efisiensi Proses (Yield)</p>
-              <h3 className="text-2xl font-bold text-slate-900 mt-1">{avgPeelingYield}% / {avgFryingYield}%</h3>
-              <p className="text-xs text-slate-500 mt-1">Kupas / Frying (Optimum)</p>
-            </div>
-            <div className="p-3 bg-purple-50 text-purple-600 rounded-lg">
-              <Percent className="w-6 h-6" />
-            </div>
-          </div>
-
-          {/* Critical Stocks & Alert Banner */}
-          <div className="col-span-1 lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-            <h4 className="font-bold text-slate-900 text-sm mb-4">Grafik Tren Produksi & Yield Harian</h4>
-            <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={productionTrendData}>
-                  <defs>
-                    <linearGradient id="colorApel" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                    </linearGradient>
-                    <linearGradient id="colorNangka" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                      <stop offset="95%" stopColor="#3B82F6" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
-                  <XAxis dataKey="tanggal" stroke="#94A3B8" fontSize={11} />
-                  <YAxis stroke="#94A3B8" fontSize={11} />
-                  <Tooltip formatter={(value) => [`${value} kg`, 'Output']} />
-                  <Legend iconType="circle" />
-                  <Area type="monotone" dataKey="apel" name="Apel" stroke="#10B981" fillOpacity={1} fill="url(#colorApel)" />
-                  <Area type="monotone" dataKey="nangka" name="Nangka" stroke="#3B82F6" fillOpacity={1} fill="url(#colorNangka)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          {/* Quick Critical Stock Alerts list panel */}
-          <div className="col-span-1 bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-between">
-            <div>
-              <div className="flex items-center justify-between mb-3 border-b pb-2">
-                <h4 className="font-bold text-slate-900 text-sm">Bahan Kritikal & Peringatan</h4>
-                <span className="bg-red-100 text-red-800 text-[10px] px-1.5 py-0.5 rounded-full font-mono">
-                  {criticalStockItems.length + branchNotifications.filter(n => !n.dibaca).length}
+            {/* Grid of the 5 Factories */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              
+              {/* LOKASI 1: MPD Wonosobo (Batu) */}
+              <div className="p-4 rounded-xl border border-slate-200/90 bg-[#F8FAFC]/50 hover:bg-white hover:shadow-md transition-all space-y-3 relative group">
+                {/* Traffic light beacon (Green) */}
+                <span className="absolute top-4 right-4 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border border-white"></span>
                 </span>
-              </div>
-              <div className="space-y-3 overflow-y-auto max-h-[180px] pr-1">
-                {criticalStockItems.map((stk, idx) => (
-                  <div key={idx} className="p-2 bg-amber-50 border border-amber-100 rounded flex gap-2 items-start">
-                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-semibold text-slate-800">{stk.key}</p>
-                      <p className="text-[10px] text-slate-500">Stok sisa: {stk.qty} {stk.unit}</p>
-                    </div>
+                
+                <div className="space-y-0.5">
+                  <span className="text-[10px] bg-green-100 text-green-800 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider font-mono">MPD</span>
+                  <h5 className="font-bold text-slate-900 text-xs truncate pt-1">Batu Wonosobo</h5>
+                </div>
+
+                <div className="divide-y divide-slate-100 text-[11px] text-slate-600 space-y-1.5">
+                  <div className="flex justify-between pt-1">
+                    <span>Produksi:</span>
+                    <span className="font-bold text-slate-900">1,250 Kg</span>
                   </div>
-                ))}
-                {branchNotifications.filter(n => !n.dibaca).slice(0, 3).map((notif: any) => (
-                  <div key={notif.id} className="p-2 bg-red-50 border border-red-100 rounded flex gap-2 items-start">
-                    <div className="w-1.5 h-1.5 bg-red-600 rounded-full mt-1.5 shrink-0"></div>
-                    <div>
-                      <p className="text-xs font-medium text-slate-800">{notif.pesan}</p>
-                      <p className="text-[8px] text-slate-400 font-mono mt-0.5">{notif.tanggal}</p>
-                    </div>
+                  <div className="flex justify-between pt-1">
+                    <span>Yield Rate:</span>
+                    <span className="font-bold text-green-700">76.2%</span>
                   </div>
-                ))}
+                  <div className="flex justify-between pt-1">
+                    <span>Stok Gudang:</span>
+                    <span className="font-bold text-slate-900">5,400 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1 font-mono text-[10px]">
+                    <span>Petty Cash:</span>
+                    <span className="font-bold text-slate-800">IDR 45.0M</span>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="pt-4 border-t border-slate-100 mt-2">
-              <div className="bg-slate-50 p-2.5 rounded text-center text-xs text-slate-700 font-medium">
-                Pabrik berjalan lancar dan optimal harian.
+
+              {/* LOKASI 2: SSP Pasuruan */}
+              <div className="p-4 rounded-xl border border-slate-200/90 bg-[#F8FAFC]/50 hover:bg-white hover:shadow-md transition-all space-y-3 relative group">
+                {/* Traffic light beacon (Green) */}
+                <span className="absolute top-4 right-4 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border border-white"></span>
+                </span>
+                
+                <div className="space-y-0.5">
+                  <span className="text-[10px] bg-green-100 text-green-800 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider font-mono">SSP</span>
+                  <h5 className="font-bold text-slate-900 text-xs truncate pt-1">Pasuruan Plant</h5>
+                </div>
+
+                <div className="divide-y divide-slate-100 text-[11px] text-slate-600 space-y-1.5">
+                  <div className="flex justify-between pt-1">
+                    <span>Produksi:</span>
+                    <span className="font-bold text-slate-900">1,800 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span>Yield Rate:</span>
+                    <span className="font-bold text-green-700">78.5%</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span>Stok Gudang:</span>
+                    <span className="font-bold text-slate-900">3,100 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1 font-mono text-[10px]">
+                    <span>Petty Cash:</span>
+                    <span className="font-bold text-slate-800">IDR 35.0M</span>
+                  </div>
+                </div>
               </div>
+
+              {/* LOKASI 3: KKI Cikampek */}
+              <div className="p-4 rounded-xl border border-slate-200/95 bg-[#F8FAFC]/55 hover:bg-white hover:shadow-md transition-all space-y-3 relative group">
+                {/* Traffic light beacon (Yellow - Minor Warning for Yield Alert) */}
+                <span className="absolute top-4 right-4 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-amber-500 border border-white"></span>
+                </span>
+                
+                <div className="space-y-0.5">
+                  <span className="text-[10px] bg-amber-100 text-amber-800 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider font-mono border border-amber-200/50">KKI</span>
+                  <h5 className="font-bold text-slate-900 text-xs truncate pt-1">Cikampek Plant</h5>
+                </div>
+
+                <div className="divide-y divide-slate-100 text-[11px] text-slate-600 space-y-1.5">
+                  <div className="flex justify-between pt-1">
+                    <span>Produksi:</span>
+                    <span className="font-bold text-slate-900">950 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1 text-amber-700 font-bold">
+                    <span>Yield Rate:</span>
+                    <span>72.8%</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span>Stok Gudang:</span>
+                    <span className="font-bold text-slate-900">7,800 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1 font-mono text-[10px]">
+                    <span>Petty Cash:</span>
+                    <span className="font-bold text-slate-800">IDR 28.0M</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* LOKASI 4: AGDN Kepanjen */}
+              <div className="p-4 rounded-xl border border-slate-200/90 bg-[#F8FAFC]/50 hover:bg-white hover:shadow-md transition-all space-y-3 relative group">
+                {/* Traffic light beacon (Green) */}
+                <span className="absolute top-4 right-4 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-emerald-500 border border-white"></span>
+                </span>
+                
+                <div className="space-y-0.5">
+                  <span className="text-[10px] bg-green-100 text-green-800 font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider font-mono">AGDN</span>
+                  <h5 className="font-bold text-slate-900 text-xs truncate pt-1">Kepanjen</h5>
+                </div>
+
+                <div className="divide-y divide-slate-100 text-[11px] text-slate-600 space-y-1.5">
+                  <div className="flex justify-between pt-1">
+                    <span>Produksi:</span>
+                    <span className="font-bold text-slate-900">1,100 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span>Yield Rate:</span>
+                    <span className="font-bold text-green-700">75.0%</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span>Stok Gudang:</span>
+                    <span className="font-bold text-slate-900">4,200 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1 font-mono text-[10px]">
+                    <span>Petty Cash:</span>
+                    <span className="font-bold text-slate-800">IDR 41.0M</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* LOKASI 5: JKT HQ (Malang HQ Flagship) */}
+              <div className="p-4 rounded-xl border border-slate-200/95 bg-green-50/15 border-green-200 hover:shadow-md transition-all space-y-3 relative group">
+                {/* Traffic light beacon (Green star) */}
+                <span className="absolute top-4 right-4 flex h-3.5 w-3.5">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-green-600 border border-white"></span>
+                </span>
+                
+                <div className="space-y-0.5">
+                  <span className="text-[10px] bg-green-600 text-white font-extrabold px-1.5 py-0.5 rounded uppercase tracking-wider font-mono">JKT HQ</span>
+                  <h5 className="font-bold text-slate-900 text-xs truncate pt-1">HQ Flagship</h5>
+                </div>
+
+                <div className="divide-y divide-slate-100 text-[11px] text-slate-600 space-y-1.5">
+                  <div className="flex justify-between pt-1">
+                    <span>Produksi:</span>
+                    <span className="font-bold text-slate-900">2,300 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1 text-green-700 font-extrabold">
+                    <span>Yield Rate:</span>
+                    <span>79.4%</span>
+                  </div>
+                  <div className="flex justify-between pt-1">
+                    <span>Stok Gudang:</span>
+                    <span className="font-bold text-slate-900">9,200 Kg</span>
+                  </div>
+                  <div className="flex justify-between pt-1 font-mono text-[10px]">
+                    <span>Petty Cash:</span>
+                    <span className="font-bold text-green-700">IDR 120.5M</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
+
+          {/* Graphical Trends Section */}
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            {/* Primary Interactive Chart Area */}
+            <div className="col-span-1 lg:col-span-3 bg-white p-6 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100/45">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="font-bold text-[#0F172A] text-sm">Grafik Kerja Produksi Apel &amp; Nangka (Kg)</h4>
+                <div className="flex gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
+                    <span className="w-2.5 h-2.5 bg-green-500 rounded-full"></span> Apel Segar
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-semibold text-slate-500">
+                    <span className="w-2.5 h-2.5 bg-blue-500 rounded-full"></span> Nangka Segar
+                  </span>
+                </div>
+              </div>
+              <div className="h-[260px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={productionTrendData}>
+                    <defs>
+                      <linearGradient id="colorApel" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#16A34A" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#16A34A" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorNangka" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#2563EB" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#2563EB" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F1F5F9" />
+                    <XAxis dataKey="tanggal" stroke="#94A3B8" fontSize={11} />
+                    <YAxis stroke="#94A3B8" fontSize={11} />
+                    <Tooltip formatter={(value) => [`${value} kg`, 'Output']} />
+                    <Legend iconType="circle" />
+                    <Area type="monotone" dataKey="apel" name="Apel" stroke="#16A34A" strokeWidth={2} fillOpacity={1} fill="url(#colorApel)" />
+                    <Area type="monotone" dataKey="nangka" name="Nangka" stroke="#2563EB" strokeWidth={2} fillOpacity={1} fill="url(#colorNangka)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* AI Advisor Context Cards on the Right */}
+            <div className="col-span-1 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-md shadow-slate-100/45 flex flex-col justify-between">
+              <div>
+                <div className="flex items-center justify-between mb-3 border-b pb-2">
+                  <h4 className="font-bold text-slate-900 text-xs uppercase tracking-wider">Log Peringatan HQ</h4>
+                  <span className="bg-red-50 border border-red-200 text-red-600 text-[10px] px-2 py-0.5 rounded-full font-mono font-bold leading-none shrink-0">
+                    {criticalStockItems.length + branchNotifications.filter(n => !n.dibaca).length} Baru
+                  </span>
+                </div>
+                
+                <div className="space-y-3 overflow-y-auto max-h-[190px] pr-1">
+                  {criticalStockItems.map((stk, idx) => (
+                    <div key={idx} className="p-2.5 bg-amber-50/70 border border-amber-150 rounded-xl flex gap-2 items-start text-[11px]">
+                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-bold text-amber-950">{stk.key || stk.nama || 'Persediaan Rendah'}</p>
+                        <p className="text-[10px] text-amber-800 leading-tight">Gudang kritis: sisa {stk.qty} kg.</p>
+                      </div>
+                    </div>
+                  ))}
+                  {branchNotifications.filter(n => !n.dibaca).slice(0, 3).map((notif: any) => (
+                    <div key={notif.id} className="p-2.5 bg-red-50 border border-red-100 rounded-xl flex gap-2 items-start text-[11px]">
+                      <div className="w-2 h-2 bg-red-500 rounded-full mt-1.5 shrink-0"></div>
+                      <div>
+                        <p className="font-bold text-slate-800">{notif.pesan}</p>
+                        <p className="text-[9px] text-slate-400 font-mono mt-0.5">{notif.tanggal}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-slate-100 mt-2">
+                <div className="bg-green-50/40 p-2.5 rounded-xl border border-green-100/85 text-center text-[11px] text-green-800 font-semibold flex items-center justify-center gap-1.5 leading-tight">
+                  <CheckCircle className="w-4 h-4 text-green-600 shrink-0" />
+                  <span>Sistem sinkron dan prima.</span>
+                </div>
+              </div>
+
+            </div>
+          </div>
+
         </div>
       )}
 
@@ -573,6 +916,54 @@ export default function Dashboards({ state, selectedLokasi, onNavigate, activeMe
               <div className="mt-3.5 text-center text-xs text-slate-500 font-mono">
                 Menyajikan 7 item teratas yang terdaftar di stock inventory {activeBranchName}
               </div>
+            </div>
+          </div>
+
+          <div className="col-span-1 lg:col-span-3 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+            <div className="border-b pb-3 mb-4 flex justify-between items-center flex-wrap gap-2">
+              <div>
+                <h4 className="font-bold text-slate-900 text-sm">Aliran & Nilai Saham Inventarisasi (7 Kategori Utama)</h4>
+                <p className="text-slate-500 text-[11px] mt-0.5">Ringkasan pergerakan stok mulai dari Saldo Awal, Rekap Transaksi Masuk/Keluar, hingga Nilai Buku Akhir.</p>
+              </div>
+              <span className="bg-slate-100 text-slate-800 text-[10px] font-bold p-1 px-2.5 rounded-full uppercase tracking-wider font-mono">Enhancement F7</span>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-indigo-100 text-slate-500 font-bold text-xs bg-indigo-50/50">
+                    <th className="py-3 px-3">Kategori Inventaris</th>
+                    <th className="py-3 px-3 text-right">Saldo Awal</th>
+                    <th className="py-3 px-3 text-right text-emerald-700 font-bold">Masuk (+)</th>
+                    <th className="py-3 px-3 text-right text-amber-700 font-bold">Keluar (-)</th>
+                    <th className="py-3 px-3 text-right text-indigo-950 font-bold">Saldo Akhir</th>
+                    <th className="py-3 px-3 text-center">Unit</th>
+                    <th className="py-3 px-3 text-right">Est. Harga Satuan</th>
+                    <th className="py-3 px-3 text-right font-bold text-indigo-700 bg-indigo-50/30">Total Nilai Saham</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs text-slate-700 font-medium">
+                  {detailedInventoryRows.map((row) => (
+                    <tr key={row.id} className="hover:bg-indigo-50/20 transition-colors">
+                      <td className="py-3 px-3 font-bold text-slate-900">{row.name}</td>
+                      <td className="py-3 px-3 text-right font-mono font-medium text-slate-600">{row.bBalance.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-right font-mono text-emerald-700 font-semibold">+{row.incoming.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-right font-mono text-amber-700 font-semibold">-{row.outgoing.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-indigo-950">{row.ending.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-center font-bold text-slate-500 font-mono lower-case">{row.unit}</td>
+                      <td className="py-3 px-3 text-right font-mono text-slate-500">Rp {row.price.toLocaleString('id-ID')}</td>
+                      <td className="py-3 px-3 text-right font-mono font-bold text-indigo-800 bg-indigo-50/20">Rp {row.value.toLocaleString('id-ID')}</td>
+                    </tr>
+                  ))}
+                  <tr className="bg-slate-50 font-bold border-t border-slate-300">
+                    <td className="py-3.5 px-3 text-slate-900 font-bold uppercase tracking-wide">TOTAL PORTFOLIO VALUE</td>
+                    <td colSpan={6} className="py-3.5 px-3 text-right font-sans text-slate-500 font-medium text-[11px] uppercase tracking-wide">Nilai Estimasi Gudang Terkonsolidasi ({activeBranchName})</td>
+                    <td className="py-3.5 px-3 text-right font-mono text-xs font-bold text-indigo-900 bg-indigo-100/50">
+                      Rp {detailedInventoryRows.reduce((sum, r) => sum + r.value, 0).toLocaleString('id-ID')}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

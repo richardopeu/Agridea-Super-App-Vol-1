@@ -1,0 +1,71 @@
+{
+  "entities": {
+    "FacilityNetwork": {
+      "title": "FacilityNetwork",
+      "description": "Manufacturing and partner facilities across the supply chain",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 128 },
+        "category": { "type": "string", "maxLength": 64 },
+        "phone": { "type": "string", "maxLength": 32 },
+        "rawMaterial": { "type": "string", "maxLength": 128 },
+        "harvestCapacity": { "type": "string", "maxLength": 64 },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "landArea": { "type": "string", "maxLength": 64 },
+        "harvestMonths": { "type": "string", "maxLength": 128 },
+        "pricePerKg": { "type": "number" },
+        "city": { "type": "string", "maxLength": 64 },
+        "status": { "type": "string", "maxLength": 32 },
+        "updatedAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["id", "name", "category"]
+    },
+    "BatchTracking": {
+      "title": "BatchTracking",
+      "description": "Production batches for chips processing and COGS tracing",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "batchNumber": { "type": "string", "maxLength": 64 },
+        "fruitVariant": { "type": "string", "maxLength": 64 },
+        "productionDate": { "type": "string", "maxLength": 32 },
+        "inputRawKg": { "type": "number" },
+        "outputFinishedKg": { "type": "number" },
+        "yieldPercent": { "type": "number" },
+        "totalCogsRp": { "type": "number" },
+        "costPerKgRp": { "type": "number" },
+        "status": { "type": "string", "maxLength": 32 }
+      },
+      "required": ["id", "batchNumber"]
+    },
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Authenticated user information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "email": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 128 },
+        "role": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "string", "maxLength": 64 }
+      },
+      "required": ["uid", "email"]
+    }
+  },
+  "firestore": {
+    "/facilities/{facilityId}": {
+      "schema": "FacilityNetwork",
+      "description": "Supply chain facilities network collection"
+    },
+    "/batches/{batchId}": {
+      "schema": "BatchTracking",
+      "description": "Production batch tracking collection"
+    },
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile collection"
+    }
+  }
+}

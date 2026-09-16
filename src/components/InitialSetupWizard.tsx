@@ -22,7 +22,8 @@ import {
   ChevronRight,
   UserCheck,
   Building,
-  DollarSign
+  DollarSign,
+  Lock
 } from 'lucide-react';
 
 interface InitialSetupWizardProps {

@@ -636,3 +636,33 @@ export const SEED_AUDIT_LOGS: AuditLog[] = [
   { id: 'AD-02', userId: 'U-02', username: 'budi_malang', tanggal: '2026-06-01T09:30:00Z', modul: 'Pengadaan', deskripsi: 'Menerbitkan Purchase Order PO/2026/06/01-003' },
   { id: 'AD-03', userId: 'U-01', username: 'richard_admin', tanggal: '2026-06-01T10:45:00Z', modul: 'Finance', deskripsi: 'Menyetujui payroll karyawan batch B-01' }
 ];
+
+export const SEED_PACKAGING_MASTER = [
+  { id: 'PK-001', nama: 'Standing Pouch Agridea 100g Premium', kategori: 'Standing Pouch', ukuran: '14x22 cm', unit: 'Pcs', standardCost: 450, supplier: 'Mitra Kemas Abadi (S-01)', status: 'Active' },
+  { id: 'PK-002', nama: 'Standing Pouch Agridea 250g Premium', kategori: 'Standing Pouch', ukuran: '18x29 cm', unit: 'Pcs', standardCost: 750, supplier: 'Mitra Kemas Abadi (S-01)', status: 'Active' },
+  { id: 'PK-003', nama: 'Aluminium Foil Bag Roll 100m', kategori: 'Aluminium Foil', ukuran: '100m Roll', unit: 'Roll', standardCost: 350000, supplier: 'Aneka Plastik Perkasa (S-02)', status: 'Active' },
+  { id: 'PK-004', nama: 'Carton Box Agridea Medium', kategori: 'Carton', ukuran: '40x30x30 cm', unit: 'Pcs', standardCost: 8500, supplier: 'Aneka Plastik Perkasa (S-02)', status: 'Active' },
+  { id: 'PK-005', nama: 'Label Sticker Agridea Apel 100g', kategori: 'Sticker', ukuran: '8x12 cm', unit: 'Pcs', standardCost: 150, supplier: 'Mitra Kemas Abadi (S-01)', status: 'Active' },
+  { id: 'PK-006', nama: 'Silica Gel Food Grade 2g', kategori: 'Silica Gel', ukuran: '2g Pack', unit: 'Pcs', standardCost: 45, supplier: 'ChemiClean Supply (S-03)', status: 'Active' }
+];
+
+export const SEED_SUPPORTING_MASTER = [
+  { id: 'SP-001', nama: 'Kertas Merang Peniris Minyak', unit: 'Pcs', standardCost: 120, supplier: 'Aneka Plastik Perkasa (S-02)', status: 'Active' },
+  { id: 'SP-011', nama: 'Lakban Coklat Opp Tape 2 Inch', unit: 'Roll', standardCost: 12000, supplier: 'Aneka Plastik Perkasa (S-02)', status: 'Active' },
+  { id: 'SP-012', nama: 'Kardus Karton Polos Kraft', unit: 'Pcs', standardCost: 5500, supplier: 'Aneka Plastik Perkasa (S-02)', status: 'Active' },
+  { id: 'SP-013', nama: 'Label SKU Barcode Thermal', unit: 'Pcs', standardCost: 35, supplier: 'Mitra Kemas Abadi (S-01)', status: 'Active' },
+  { id: 'SP-014', nama: 'Pallet Kayu Standard 120x100', unit: 'Pcs', standardCost: 110000, supplier: 'Mitra Kayu Sejahtera (S-04)', status: 'Active' },
+  { id: 'SP-015', nama: 'Stretch Film Wrap Roll', unit: 'Roll', standardCost: 65000, supplier: 'Aneka Plastik Perkasa (S-02)', status: 'Active' },
+  { id: 'SP-016', nama: 'Bubble Wrap High Density 50m', unit: 'Roll', standardCost: 135000, supplier: 'Aneka Plastik Perkasa (S-02)', status: 'Active' },
+  { id: 'SP-017', nama: 'Tali Packing Strap Hijau 1000m', unit: 'Roll', standardCost: 95000, supplier: 'Aneka Plastik Perkasa (S-02)', status: 'Active' }
+];
+
+export const SEED_CHEMICALS_MASTER = [
+  { id: 'CC-101', nama: 'Minyak Kelapa Premium Frying', kategori: 'Minyak Kelapa', unit: 'Liter', standardCost: 18500, supplier: 'Supplier Minyak Inti (S-05)', safetyNotes: 'Keep in dry covered storage', status: 'Active' },
+  { id: 'CC-102', nama: 'LPG Pertamina Industri 50kg', kategori: 'Gas Industri', unit: 'Tabung', standardCost: 950000, supplier: 'Gas Agung Utama (S-06)', safetyNotes: 'Flammable. Store in ventilated area outside production plant.', status: 'Active' },
+  { id: 'CC-103', nama: 'LPG Melon 3 Kg', kategori: 'LPG 3 Kg', unit: 'Tabung', standardCost: 22000, supplier: 'Sembako Subur (S-07)', safetyNotes: 'Explosive hazard. Ensure safe hose connections.', status: 'Active' },
+  { id: 'CC-104', nama: 'LPG Pertamina Blue 12 Kg', kategori: 'LPG 12 Kg', unit: 'Tabung', standardCost: 215000, supplier: 'Gas Agung Utama (S-06)', safetyNotes: 'Keep away from direct heat and ignition sources.', status: 'Active' },
+  { id: 'CC-105', nama: 'Pelumas Food Grade Machine Oil', kategori: 'Pelumas Food Grade', unit: 'Liter', standardCost: 180000, supplier: 'ChemiClean Supply (S-03)', safetyNotes: 'NSF H1 Approved food production lubricant.', status: 'Active' },
+  { id: 'CC-106', nama: 'Cleaning Chemical Base Floor Wash', kategori: 'Cleaning Chemical', unit: 'Gallon', standardCost: 85000, supplier: 'ChemiClean Supply (S-03)', safetyNotes: 'Wear gloves. Irritant to eyes.', status: 'Active' },
+  { id: 'CC-107', nama: 'Sanitizer Spray Anti-Bacterial', kategori: 'Sanitizer', unit: 'Liter', standardCost: 45000, supplier: 'ChemiClean Supply (S-03)', safetyNotes: 'Alcohol 75%. Keep away from spark.', status: 'Active' }
+];

@@ -1,7 +1,9 @@
 {
   "name": "Agridea Manufacturing Control App",
-  "description": "Smart Manufacturing Chips Tracing System & COGS/HPP Module for fruit and vegetable chip processing.",
-  "requestFramePermissions": [],
+  "description": "Smart Manufacturing Chips Tracing System, Google Maps Facility Network input management, and AI Harvest Radar & Sourcing Copilot for fruit and vegetable chip processing.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

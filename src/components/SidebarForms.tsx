@@ -21,7 +21,13 @@ import {
   AlertCircle,
   AlertOctagon,
   Users,
-  UserCheck
+  UserCheck,
+  UploadCloud,
+  FileText,
+  Trash2,
+  Eye,
+  Download,
+  RefreshCw
 } from 'lucide-react';
 
 interface SidebarFormsProps {
@@ -303,11 +309,23 @@ export default function SidebarForms({ state, onAction, selectedLokasi, currentU
   const [salPrice, setSalPrice] = useState(18000);
 
   // 8. Form: Jurnal Petty Cash
+  const [cashNumber, setCashNumber] = useState<'PC-TX-' | string>('');
+  useEffect(() => {
+    if (!cashNumber) {
+      setCashNumber(`PC-TX-${Math.floor(Math.random() * 90000 + 10000)}`);
+    }
+  }, [cashNumber]);
+
   const [cashCategory, setCashCategory] = useState<'Operasional' | 'Bahan Penolong' | 'Maintenance' | 'Listrik & Air' | 'Gaji Tambahan' | 'Lain-lain'>('Operasional');
   const [cashDesc, setCashDesc] = useState('');
   const [cashType, setCashType] = useState<'Debit' | 'Kredit'>('Kredit');
   const [cashAmount, setCashAmount] = useState(150000);
   const [cashHppFlag, setCashHppFlag] = useState(true);
+  const [cashRequester, setCashRequester] = useState(currentUser?.namaLengkap || currentUser?.username || 'Staff');
+  const [cashNotes, setCashNotes] = useState('');
+  const [cashApprovalStatus, setCashApprovalStatus] = useState<'Approved' | 'Pending' | 'Rejected'>('Approved');
+  const [cashAttachments, setCashAttachments] = useState<Array<{ name: string; type: string; base64?: string }>>([]);
+  const [cashIsDrag, setCashIsDrag] = useState(false);
 
   // Submissions alerts
   const [successMsg, setSuccessMsg] = useState('');
@@ -492,19 +510,91 @@ export default function SidebarForms({ state, onAction, selectedLokasi, currentU
     renderSuccess(`Invoice penjualan terinput! Surat Jalan terbit secara digital & sisa stok produk jadi berkurang.`);
   };
 
+  const handleCashDocDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setCashIsDrag(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const filesArr = Array.from(e.dataTransfer.files) as File[];
+      filesArr.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setCashAttachments(prev => [
+            ...prev,
+            { name: file.name, type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'), base64 }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleCashDocFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArr = Array.from(e.target.files) as File[];
+      filesArr.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setCashAttachments(prev => [
+            ...prev,
+            { name: file.name, type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'), base64 }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleRemoveCashDoc = (index: number) => {
+    setCashAttachments(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleReplaceCashDoc = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setCashAttachments(prev => prev.map((item, idx) => {
+          if (idx === index) {
+            return {
+              name: file.name,
+              type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+              base64
+            };
+          }
+          return item;
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handlePettyCashSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const backdatePayload = useBackdate ? { tanggal: backdateTanggal, time: backdateJam } : {};
     onAction('PETTYCASH', {
+      id: cashNumber,
+      pettyCashNumber: cashNumber,
       kategori: cashCategory,
       deskripsi: cashDesc || `Pengeluaran ${cashCategory}`,
       tipe: cashType,
       jumlah: cashAmount,
       masukHPP: cashHppFlag,
+      requester: cashRequester,
+      notes: cashNotes,
+      status: cashApprovalStatus,
+      documents: cashAttachments,
       ...backdatePayload
     });
-    renderSuccess(`Jurnal petty cash Rp ${cashAmount.toLocaleString('id-ID')} tersimpan!`);
+    renderSuccess(`Jurnal petty cash ${cashNumber} sebesar Rp ${cashAmount.toLocaleString('id-ID')} tersimpan!`);
+    
+    // Reset fields
     setCashDesc('');
+    setCashNotes('');
+    setCashAttachments([]);
+    setCashNumber(`PC-TX-${Math.floor(Math.random() * 90000 + 10000)}`);
   };
 
   return (
@@ -1428,6 +1518,38 @@ export default function SidebarForms({ state, onAction, selectedLokasi, currentU
           <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
             <Plus className="w-4 h-4 text-emerald-600" /> Jurnal Keuangan Sederhana (Pengeluaran Kas Kecil)
           </h4>
+
+          {/* Core Info Row */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Petty Cash Number</label>
+              <input
+                type="text"
+                value={cashNumber}
+                readOnly
+                className="bg-slate-200 border w-full rounded p-2 font-mono font-bold text-slate-600 cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Pabrik / Factory</label>
+              <input
+                type="text"
+                value={selectedLokasi === 'JKT' ? 'Jakarta HQ (JKT)' : selectedLokasi === 'Wns' ? 'Wonosobo (Wns)' : selectedLokasi}
+                readOnly
+                className="bg-slate-200 border w-full rounded p-2 font-bold text-slate-600 cursor-not-allowed"
+              />
+            </div>
+            <div>
+              <label className="font-bold text-slate-700 block mb-1">Tanggal Transaksi</label>
+              <input
+                type="text"
+                value={useBackdate ? `${backdateTanggal} ${backdateJam}` : new Date().toLocaleDateString('id-ID')}
+                readOnly
+                className="bg-slate-200 border w-full rounded p-2 font-bold text-slate-600 cursor-not-allowed"
+              />
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Kategori Transaksi</label>
@@ -1449,7 +1571,7 @@ export default function SidebarForms({ state, onAction, selectedLokasi, currentU
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="font-semibold text-slate-700 block mb-1">Jumlah Dana (IDR)</label>
               <input type="number" value={cashAmount} onChange={(e) => setCashAmount(Math.max(1, parseInt(e.target.value) || 0))} className="border w-full rounded p-2 font-bold" />
@@ -1461,11 +1583,143 @@ export default function SidebarForms({ state, onAction, selectedLokasi, currentU
                 <option value="Tidak">Masuk HPP: Tidak (Hanya Pengeluaran Non-Pabrik)</option>
               </select>
             </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Approval Status</label>
+              <select value={cashApprovalStatus} onChange={(e: any) => setCashApprovalStatus(e.target.value)} className="bg-slate-50 border w-full rounded p-2 font-semibold">
+                <option value="Approved">Approved (Selesai diposting)</option>
+                <option value="Pending">Pending (Butuh Verifikasi Manajer)</option>
+                <option value="Rejected">Rejected</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Nama Pengaju / Requester</label>
+              <input
+                type="text"
+                value={cashRequester}
+                onChange={(e) => setCashRequester(e.target.value)}
+                className="border w-full rounded p-2 font-semibold"
+                placeholder="Nama Lengkap Pengaju"
+                required
+              />
+            </div>
+            <div>
+              <label className="font-semibold text-slate-700 block mb-1">Deskripsi Detail Pengeluaran</label>
+              <input type="text" value={cashDesc} onChange={(e) => setCashDesc(e.target.value)} className="border w-full rounded p-2 font-medium" placeholder="Beli baut ukuran M12 baru untuk dinamo" required />
+            </div>
           </div>
 
           <div>
-            <label className="font-semibold text-slate-700 block mb-1">Deskripsi Detail Pengeluaran</label>
-            <input type="text" value={cashDesc} onChange={(e) => setCashDesc(e.target.value)} className="border w-full rounded p-2" placeholder="Beli baut ukuran M12 baru untuk dinamo vacuum fryer" required />
+            <label className="font-semibold text-slate-700 block mb-1">Catatan Tambahan (Notes)</label>
+            <textarea
+              value={cashNotes}
+              onChange={(e) => setCashNotes(e.target.value)}
+              className="border w-full rounded p-2"
+              placeholder="Catatan detail tambahan pengeluaran..."
+              rows={2}
+            />
+          </div>
+
+          {/* Document Attachment Widget with Drag & Drop */}
+          <div className="space-y-1">
+            <label className="font-semibold text-slate-700 block mb-1">Berkas Lampiran / Attachment (Photo, Invoice, Receipt, PDF, PNG, JPG) *</label>
+            <div className="relative">
+              <div
+                onDragOver={(e) => { e.preventDefault(); setCashIsDrag(true); }}
+                onDragLeave={() => setCashIsDrag(false)}
+                onDrop={handleCashDocDrop}
+                className={`border-2 border-dashed rounded-xl p-5 text-center transition flex flex-col items-center justify-center cursor-pointer ${
+                  cashIsDrag ? 'border-emerald-500 bg-emerald-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50'
+                }`}
+              >
+                <UploadCloud className="w-8 h-8 text-slate-400 mb-2" />
+                <p className="text-xs font-semibold text-slate-700">Drag &amp; Drop receipt files here, or <span className="text-emerald-600 hover:underline">browse</span></p>
+                <p className="text-[10px] text-slate-400 mt-1">Supported formats: JPG, JPEG, PNG, PDF. Multiple files allowed.</p>
+                
+                <input
+                  type="file"
+                  multiple
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={handleCashDocFileInput}
+                  className="hidden"
+                  id="cash-file-input"
+                />
+                <label htmlFor="cash-file-input" className="absolute inset-0 w-full h-full cursor-pointer text-transparent" />
+              </div>
+            </div>
+
+            {/* Render list of attached items */}
+            {cashAttachments.length > 0 && (
+              <div className="mt-3 space-y-2 border border-slate-200 rounded-xl p-3 bg-slate-100">
+                <p className="text-[9px] uppercase font-bold text-slate-500 block mb-1 font-sans">Attached Documents / Proof ({cashAttachments.length})</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {cashAttachments.map((doc, idx) => (
+                    <div key={idx} className="flex flex-col text-xs bg-white border border-slate-200 rounded-lg p-2.5 shadow-xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-1.5 truncate max-w-[70%]">
+                          <FileText className="w-4 h-4 text-emerald-600 shrink-0" />
+                          <span className="truncate text-slate-800 font-medium font-sans">{doc.name}</span>
+                        </div>
+                        <div className="flex items-center space-x-1">
+                          {/* Replace Trigger */}
+                          <label className="text-blue-600 hover:text-blue-700 cursor-pointer p-1 rounded-full hover:bg-blue-50" title="Replace Attachment">
+                            <RefreshCw className="w-3.5 h-3.5" />
+                            <input
+                              type="file"
+                              accept=".jpg,.jpeg,.png,.pdf"
+                              onChange={(e) => handleReplaceCashDoc(idx, e)}
+                              className="hidden"
+                            />
+                          </label>
+
+                          {/* Live simulated download */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (doc.base64) {
+                                const link = document.createElement('a');
+                                link.href = doc.base64;
+                                link.download = doc.name;
+                                link.click();
+                              }
+                            }}
+                            className="text-emerald-600 hover:text-emerald-700 p-1 rounded-full hover:bg-emerald-50"
+                            title="Download Attachment"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+
+                          {/* Delete Trigger */}
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveCashDoc(idx)}
+                            className="text-rose-500 hover:text-rose-600 p-1 rounded-full hover:bg-rose-50"
+                            title="Delete Attachment"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Live Image/PDF Base64 Previews */}
+                      {doc.base64 && (doc.type.includes('image') || doc.type.startsWith('image/')) ? (
+                        <div className="border border-slate-200 rounded-md overflow-hidden bg-slate-50 h-24 flex items-center justify-center relative">
+                          <img src={doc.base64} alt="Preview" className="h-full w-full object-contain" referrerPolicy="no-referrer" />
+                        </div>
+                      ) : (
+                        <div className="border border-slate-200 border-dashed rounded-md bg-slate-50 p-3 h-24 flex flex-col items-center justify-center text-[10px] text-slate-500 font-medium">
+                          <FileText className="w-6 h-6 text-slate-400 mb-1" />
+                          <span>PDF / Document format</span>
+                          <span className="text-[9px] text-slate-400 mt-0.5 font-mono">No direct image preview</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           <button type="submit" id="submit-pettycash-btn" className="w-full bg-slate-950 text-white font-bold py-2 rounded shadow hover:bg-slate-800 transition">

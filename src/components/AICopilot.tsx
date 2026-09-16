@@ -60,8 +60,11 @@ export default function AICopilot({ state, activeMenu, selectedLokasi }: AICopil
 
   // Chat queries state
   const [chatInput, setChatInput] = useState('');
-  const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'assistant'; text: string }>>([
-    { sender: 'assistant', text: 'Halo! Saya AI Business Copilot Agridea. Saya terintegrasi penuh dengan seluruh data harian Anda. Silakan tanyakan analisis operasional, yield pabrik, risiko pasokan, hingga proyeksi margin.' }
+  const [isChatLoading, setIsChatLoading] = useState(false);
+  const [chatModel, setChatModel] = useState<'gemini-3.5-flash' | 'gemini-3.1-flash-lite' | 'gemini-3.8-flash' | 'gemini-3.1-pro-preview'>('gemini-3.5-flash');
+  const [useSearchGrounding, setUseSearchGrounding] = useState(true);
+  const [chatHistory, setChatHistory] = useState<Array<{ sender: 'user' | 'assistant'; text: string; citations?: Array<{ title: string; uri: string }> }>>([
+    { sender: 'assistant', text: 'Halo! Saya AI Business Copilot Agridea didukung Gemini. Saya terintegrasi penuh dengan seluruh data operasional Anda dan Google Search Grounding. Silakan tanyakan analisis yield, COGS, risiko rantai pasok, hingga harga komoditas terkini.' }
   ]);
 
   // Map slug menu IDs to pleasant descriptive workspace names
@@ -228,49 +231,80 @@ export default function AICopilot({ state, activeMenu, selectedLokasi }: AICopil
   }, [contextStats]);
 
   // I. AI CHAT ASSISTANT KNOWLEDGE BASE AND QUERY PARSING MODULE
-  const handleChatSend = () => {
-    if (!chatInput.trim()) return;
+  const handleChatSend = async () => {
+    if (!chatInput.trim() || isChatLoading) return;
 
     const userMessage = chatInput.trim();
     setChatInput('');
 
-    // Append user bubble immediate
+    // Append user bubble immediately
     const newHistory = [...chatHistory, { sender: 'user' as const, text: userMessage }];
     setChatHistory(newHistory);
+    setIsChatLoading(true);
 
-    // AI thinking state triggered
-    setTimeout(() => {
-      let aiResponseText = '';
-      const query = userMessage.toLowerCase();
+    try {
+      const messagesPayload = newHistory.map(m => ({
+        role: m.sender === 'user' ? 'user' : 'model',
+        content: m.text
+      }));
 
-      // Smart pattern matching grounded to actual system variables
-      if (query.includes('yield') || query.includes('rendemen') || query.includes('mpd')) {
-        aiResponseText = `Berdasarkan record log kupasan di pangkalan data saat ini, **Pabrik MPD (Mempawah)** memiliki throughput yield rata-rata **${contextStats.avgYieldValue.toFixed(1)}%**. Rendemen ini melampaui standard dasar minimum 59%. Penyebab fluktuasi minor diidentifikasi timbul dari kadar air buah nangka lokal yang dipasok oleh supplier sekunder. Rekomendasi tindakan: Terapkan curing awal 12 jam sebelum pelepasan WIP ke ruang frying.`;
-      } 
-      else if (query.includes('supplier') || query.includes('mitra')) {
-        aiResponseText = `Analisis Multi-Supplier menunjukkan **Koperasi Tani Makmur Batu (SUP-01)** memberikan keunggulan buah premium dengan grade A stabil melampaui **85%**. Namun, mitigasi kritis direkomendasikan pada **CV Pisang Jaya Dampit (SUP-02)** dikarenakan rekor keterlambatan armada membukukan rata-rata hambatan logistik hingga 2.4 hari.`;
-      } 
-      else if (query.includes('inventory') || query.includes('stok') || query.includes('gudang')) {
-        aiResponseText = `Sistem mencatat total item saringan kritis stockout sebanyak **${contextStats.stockShortCritical}** item SKU penolong. Di satu sisi, terdapat **${contextStats.stockOverloadCritical}** cluster penumpukan WIP di gudang pembekuan. Direkomendasikan melakukan rebalancing transit beban kerja gorengan nangka pada hari kerja berikutnya.`;
-      } 
-      else if (query.includes('sku') || query.includes('untung') || query.includes('profit')) {
-        aiResponseText = `SKU **Keripik Apel Premium 100gr (APL-P100)** mencatatkan profitabilitas tertinggi dengan akumulasi standard gross margin mencapai **46.2%**. Margin terendah diidentifikasi pada keripik salak akibat tingginya biaya de-stoning (pengupasan biji) manual.`;
-      } 
-      else if (query.includes('forecast') || query.includes('proyeksi') || query.includes('bulan')) {
-        aiResponseText = `Proyeksi kapasitas 30 hari ke depan memprediksi volume kebutuhan pengadaan kelapa logistik & minyak goreng mentah menembus angka **11,850 Kg** dengan trend margin stabil di angka **42.5%**. Cashflow inflow diprediksi menyentuh **Rp 148,000,000** berdasarkan laju invoice PO distributor utama yang aktif.`;
-      } 
-      else {
-        // Fallback robust smart reply
-        aiResponseText = `Pertanyaan Anda terdeteksi memerlukan review operasional pada departemen terkait. Dari data harian yang saya baca:
-- **Throughput Pabrik**: Saat ini mengelola **${contextStats.txCount}** batch aktif.
-- **Rasio Utilisasi**: Beroperasi pada tingkat efisiensi rendemen **${contextStats.avgYieldValue.toFixed(1)}%**.
-- **Financial Status**: Pendapatan operasional invoice terekam senilai **Rp ${contextStats.totalInvoicesValue.toLocaleString('id-ID')}**.
+      const contextData = {
+        activePage: dashboardFriendlyName,
+        selectedBranch: selectedLokasi || 'All Locations',
+        throughputBatches: contextStats.txCount,
+        avgYield: `${contextStats.avgYieldValue.toFixed(1)}%`,
+        revenueTotal: `Rp ${contextStats.totalInvoicesValue.toLocaleString('id-ID')}`,
+        stockCriticalShort: contextStats.stockShortCritical,
+        stockCriticalOverload: contextStats.stockOverloadCritical
+      };
 
-Apakah Anda ingin mensimulasikan dampak jika kita menggeser variabel ini lewat fitur **What-If Simulation**?`;
+      const res = await fetch('/api/gemini/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messages: messagesPayload,
+          model: useSearchGrounding ? 'gemini-3.5-flash' : chatModel,
+          systemInstruction: `You are Agridea AI Business Copilot for fruit & vegetable chips manufacturing. You are currently assisting the user on page '${dashboardFriendlyName}'. Provide practical, operational, data-backed guidance in Indonesian.`,
+          enableSearchGrounding: useSearchGrounding,
+          contextData
+        })
+      });
+
+      if (!res.ok) {
+        throw new Error(`Gemini server error ${res.status}`);
       }
 
-      setChatHistory(prev => [...prev, { sender: 'assistant', text: aiResponseText }]);
-    }, 450);
+      const data = await res.json();
+      const searchChunks = data.groundingMetadata?.searchChunks || [];
+      const replyPrefix = data.fallbackNotice ? `> ℹ️ *${data.fallbackNotice}*\n\n` : '';
+
+      setChatHistory(prev => [
+        ...prev,
+        {
+          sender: 'assistant',
+          text: replyPrefix + (data.reply || 'Tidak ada balasan dari Gemini.'),
+          citations: searchChunks
+        }
+      ]);
+    } catch (err: any) {
+      console.error('Chat error:', err);
+      const rawMsg = String(err?.message || '');
+      const isQuota = rawMsg.includes('429') || rawMsg.includes('quota') || rawMsg.includes('RESOURCE_EXHAUSTED');
+      
+      const cleanNotice = isQuota
+        ? `⚠️ *Batas Kuota Model Tercapai (429)*: Model yang dipilih sedang mencapai batas kuota API gratis. Silakan beralih ke model **Gemini 3.1 Flash Lite** di menu model di atas untuk respon instan dan stabil.`
+        : `⚠️ *Gagal menghubungi Gemini*: ${rawMsg || 'Koneksi terputus.'} (Data lokal cadangan: Yield saat ini ${contextStats.avgYieldValue.toFixed(1)}% dengan ${contextStats.txCount} batch aktif).`;
+
+      setChatHistory(prev => [
+        ...prev,
+        {
+          sender: 'assistant',
+          text: cleanNotice
+        }
+      ]);
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   const handleQuickQuestionClick = (q: string) => {
@@ -279,16 +313,16 @@ Apakah Anda ingin mensimulasikan dampak jika kita menggeser variabel ini lewat f
 
   return (
     <>
-      {/* Glow action trigger floating action button */}
+      {/* Floating AI Button in the bottom right with a beautiful green pulse accent */}
       <button
         id="trigger-ai-copilot-panel"
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 bg-slate-950 text-white p-3.5 rounded-full shadow-2xl hover:bg-emerald-600 transition-all z-40 flex items-center gap-2 group border border-slate-800"
-        title="Buka AI Business Copilot"
+        className="fixed bottom-6 right-6 bg-green-600 text-white p-3.5 rounded-full shadow-xl hover:shadow-green-600/30 hover:bg-green-700 hover:scale-105 active:scale-95 transition-all duration-200 z-40 flex items-center gap-2 group border border-green-500/30 cursor-pointer"
+        title="Buka AI Assistant (Agridea Copilot)"
       >
-        <Brain className="w-5 h-5 text-emerald-400 group-hover:rotate-12 transition-transform shrink-0" />
-        <span className="text-xs font-black tracking-wider uppercase pr-1">AI Business Copilot</span>
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping absolute top-0 right-1" />
+        <Sparkles className="w-4 h-4 text-green-105 group-hover:rotate-12 transition-transform shrink-0" />
+        <span className="text-xs font-bold tracking-wider uppercase pr-1 font-sans">AI assistant</span>
+        <span className="w-2.5 h-2.5 rounded-full bg-white absolute -top-0.5 -right-0.5 animate-pulse shadow-sm" />
       </button>
 
       {/* Right Drawer Panel Backdrop */}
@@ -647,7 +681,35 @@ Apakah Anda ingin mensimulasikan dampak jika kita menggeser variabel ini lewat f
 
           {/* I. CHAT ASSISTANT PANEL */}
           {activeTab === 'chat' && (
-            <div className="flex flex-col h-[400px] bg-slate-950/80 rounded-2xl border border-slate-800 overflow-hidden">
+            <div className="flex flex-col h-[420px] bg-slate-950/80 rounded-2xl border border-slate-800 overflow-hidden">
+              {/* Model & Search Grounding Bar */}
+              <div className="px-3 py-1.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between text-[10px]">
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-400 font-bold">Model:</span>
+                  <select
+                    value={chatModel}
+                    onChange={(e) => setChatModel(e.target.value as any)}
+                    className="bg-slate-800 text-slate-200 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] focus:outline-none"
+                  >
+                    <option value="gemini-3.5-flash">3.5 Flash (Standar)</option>
+                    <option value="gemini-3.1-flash-lite">⚡ 3.1 Lite (Cepat & Kuota Stabil)</option>
+                    <option value="gemini-3.8-flash">3.8 Flash (Baru)</option>
+                    <option value="gemini-3.1-pro-preview">3.1 Pro (Billing)</option>
+                  </select>
+                </div>
+
+                <button
+                  onClick={() => setUseSearchGrounding(!useSearchGrounding)}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold transition ${
+                    useSearchGrounding ? 'bg-blue-600/30 text-blue-300 border border-blue-500/50' : 'bg-slate-800 text-slate-400'
+                  }`}
+                  title="Aktifkan Google Search Grounding"
+                >
+                  <span>🌐</span>
+                  <span>Search {useSearchGrounding ? 'ON' : 'OFF'}</span>
+                </button>
+              </div>
+
               {/* Message scroll viewport */}
               <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5 text-[11px] leading-relaxed">
                 {chatHistory.map((msg, index) => (
@@ -660,20 +722,47 @@ Apakah Anda ingin mensimulasikan dampak jika kita menggeser variabel ini lewat f
                         ? 'bg-slate-800 border-slate-700 text-white rounded-br-none'
                         : 'bg-slate-900 border-slate-800/60 text-slate-200 rounded-bl-none font-medium'
                     }`}>
-                      {msg.text}
+                      <p className="whitespace-pre-wrap">{msg.text}</p>
+                      {msg.citations && msg.citations.length > 0 && (
+                        <div className="mt-2 pt-1.5 border-t border-slate-800 text-[9px] space-y-1">
+                          <span className="text-blue-400 font-bold block">🌐 Sumber Google Search:</span>
+                          <div className="flex flex-wrap gap-1">
+                            {msg.citations.slice(0, 3).map((cit, cIdx) => (
+                              <a
+                                key={cIdx}
+                                href={cit.uri}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-1.5 py-0.5 rounded bg-slate-950 text-blue-300 hover:text-white border border-slate-800 truncate max-w-[160px]"
+                              >
+                                {cit.title || cit.uri}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
+
+                {isChatLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-slate-900 border border-slate-800 p-2.5 rounded-2xl rounded-bl-none text-[10px] text-emerald-400 flex items-center gap-2">
+                      <Sparkles className="w-3.5 h-3.5 animate-spin" />
+                      <span>Gemini sedang berpikir...</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Sample Prompts Tray */}
               <div className="p-2 border-t border-slate-800 flex gap-1.5 overflow-x-auto bg-slate-950/90 whitespace-nowrap scrollbar-thin select-none">
                 {[
-                  'Why is yield decreasing at MPD?',
-                  'Which supplier gives the best chips yield?',
-                  'Why is inventory increasing?',
-                  'Which SKU has the highest profit?',
-                  'What is the forecast for next month?'
+                  'Berapa harga pasar apel di Jatim sekarang?',
+                  'Kenapa yield kupas di MPD berfluktuasi?',
+                  'Supplier mana yang rendemen buahnya tertinggi?',
+                  'Simulasi kenaikan harga minyak goreng 15%',
+                  'Bagaimana proyeksi cashflow bulan depan?'
                 ].map((q, i) => (
                   <button
                     key={i}
@@ -692,12 +781,14 @@ Apakah Anda ingin mensimulasikan dampak jika kita menggeser variabel ini lewat f
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleChatSend(); }}
+                  disabled={isChatLoading}
                   placeholder="Ketik pertanyaan untuk copilot..."
-                  className="flex-1 bg-slate-900 text-[11px] font-sans font-medium text-white border border-slate-850 rounded-xl px-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20"
+                  className="flex-1 bg-slate-900 text-[11px] font-sans font-medium text-white border border-slate-850 rounded-xl px-3 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500/20 disabled:opacity-50"
                 />
                 <button
                   onClick={handleChatSend}
-                  className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition shrink-0"
+                  disabled={isChatLoading || !chatInput.trim()}
+                  className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-850 text-white transition shrink-0 cursor-pointer disabled:cursor-not-allowed"
                 >
                   <Send className="w-3.5 h-3.5" />
                 </button>

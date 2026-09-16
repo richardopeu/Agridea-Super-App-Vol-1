@@ -245,20 +245,299 @@ const INITIAL_SEED_PLANS: ProductionPlan[] = [
 
 export default function ProductionPlanning({ state, setState, selectedLokasi, currentUser }: ProductionPlanningProps) {
   const [plans, setPlans] = useState<ProductionPlan[]>(() => {
-    const localPlans = localStorage.getItem('agridea_production_plans');
-    return localPlans ? JSON.parse(localPlans) : INITIAL_SEED_PLANS;
+    try {
+      const localPlans = localStorage.getItem('agridea_production_plans');
+      return localPlans ? JSON.parse(localPlans) : INITIAL_SEED_PLANS;
+    } catch (e) {
+      return INITIAL_SEED_PLANS;
+    }
   });
 
   // Sync to local
   useEffect(() => {
-    localStorage.setItem('agridea_production_plans', JSON.stringify(plans));
+    try {
+      localStorage.setItem('agridea_production_plans', JSON.stringify(plans));
+    } catch (e) {
+      console.warn('Could not sync production plans to localStorage', e);
+    }
   }, [plans]);
 
-  const [activeTab, setActiveTab] = useState<'factory' | 'consolidated' | 'director' | 'plans' | 'ai-insights'>('factory');
-  const [selectedPlanFactory, setSelectedPlanFactory] = useState<string>(selectedLokasi === 'JKT' ? 'MPD' : selectedLokasi);
+  const [activeTab, setActiveTab] = useState<'factory' | 'consolidated' | 'director' | 'plans' | 'ai-insights' | 'mrp'>('factory');
+  const [selectedPlanFactory, setSelectedPlanFactory] = useState<string>(() => {
+    if (selectedLokasi && selectedLokasi !== 'JKT' && selectedLokasi !== 'ALL') {
+      return selectedLokasi;
+    }
+    return 'MPD';
+  });
   const [selectedMonth, setSelectedMonth] = useState<number>(6); // June
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedWeek, setSelectedWeek] = useState<number>(0); // 0 means Consolidated Full Month
+
+  // Master Data mapping helpers (Hoisted before any useMemo calls)
+  const activeFruitVariants = useMemo(() => {
+    return (state?.fruitVariants || []).filter((fv: any) => fv && (fv.status === 'Active' || fv.status === 'Aktif' || fv.status === 'active'));
+  }, [state?.fruitVariants]);
+
+  const activeChipVariants = useMemo(() => {
+    return (state?.chipVariants || []).filter((cv: any) => cv && (cv.status === 'Active' || cv.status === 'Aktif' || cv.status === 'active'));
+  }, [state?.chipVariants]);
+
+  const fruitIdToName = (id: string) => {
+    if (!id) return '';
+    const f = (state?.fruitVariants || []).find((v: any) => v && v.id === id);
+    return f ? f.nama : id;
+  };
+
+  const chipIdToName = (id: string) => {
+    if (!id) return '';
+    const c = (state?.chipVariants || []).find((v: any) => v && v.id === id);
+    return c ? c.nama : id;
+  };
+
+  const fruitNameToId = (name: string) => {
+    if (!name) return '';
+    const found = (state?.fruitVariants || []).find((v: any) => v && v.nama && v.nama.trim().toLowerCase() === name.trim().toLowerCase());
+    return found?.id || '';
+  };
+
+  // MRP simulation/active-plan states
+  const [mrpViewMode, setMrpViewMode] = useState<'active-plan' | 'simulate'>('active-plan');
+  const [mrpTargetKg, setMrpTargetKg] = useState<number>(1000);
+  const [mrpSelectedSku, setMrpSelectedSku] = useState<string>(() => {
+    return state?.produk && state.produk.length > 0 ? state.produk[0].id : 'PRD-01';
+  });
+
+  const mrpRequirements = useMemo(() => {
+    let targets: { skuId: string; targetKg: number; targetPcs: number }[] = [];
+
+    if (mrpViewMode === 'simulate') {
+      const selectedSkuObj = (state?.produk || []).find((p: any) => p.id === mrpSelectedSku);
+      if (selectedSkuObj) {
+        const gramasi = selectedSkuObj.gramasi || 100;
+        const targetPcs = Math.round((mrpTargetKg * 1000) / gramasi);
+        targets.push({
+          skuId: mrpSelectedSku,
+          targetKg: mrpTargetKg,
+          targetPcs: targetPcs
+        });
+      }
+    } else {
+      const activePlan = plans.find(p => p.lokasiId === selectedPlanFactory && p.bulan === selectedMonth && p.tahun === selectedYear);
+      if (activePlan) {
+        if (activePlan.keripikOutputPlan && activePlan.keripikOutputPlan.length > 0) {
+          activePlan.keripikOutputPlan.forEach((kop: any) => {
+            const skuObj = (state?.produk || []).find((p: any) => p.id === kop.chipVariantId);
+            if (skuObj) {
+              const gramasi = skuObj.gramasi || 100;
+              const targetPcs = Math.round(((kop.plannedOutputKg || 0) * 1000) / gramasi);
+              targets.push({
+                skuId: skuObj.id,
+                targetKg: kop.plannedOutputKg || 0,
+                targetPcs: targetPcs
+              });
+            }
+          });
+        } else if (activePlan.productionPlan && activePlan.productionPlan.length > 0) {
+          activePlan.productionPlan.forEach((pp: any) => {
+            const fvName = fruitIdToName(pp.fruitVariantId) || '';
+            const skuObj = (state?.produk || []).find((p: any) => p?.varian && fvName && p.varian.toLowerCase().includes(fvName.toLowerCase())) ||
+                           (state?.produk || []).find((p: any) => p?.id === 'PRD-01') ||
+                           (state?.produk || [])[0];
+            if (skuObj) {
+              const gramasi = skuObj.gramasi || 100;
+              const targetPcs = Math.round(((pp.netChipsOutputKg || 0) * 1000) / gramasi);
+              targets.push({
+                skuId: skuObj.id,
+                targetKg: pp.netChipsOutputKg || 0,
+                targetPcs: targetPcs
+              });
+            }
+          });
+        }
+      }
+    }
+
+    const result = {
+      targets,
+      fruit: [] as any[],
+      packaging: [] as any[],
+      supporting: [] as any[],
+      chemicals: [] as any[],
+      totals: {
+        totalTargetKg: 0,
+        totalTargetPcs: 0,
+        totalBudget: 0
+      }
+    };
+
+    const boms = state?.bom || [];
+
+    targets.forEach(tgt => {
+      result.totals.totalTargetKg += tgt.targetKg;
+      result.totals.totalTargetPcs += tgt.targetPcs;
+
+      const skuObj = (state?.produk || []).find((p: any) => p?.id === tgt.skuId);
+      if (!skuObj) return;
+
+      const matchingBom = boms.find((b: any) => b?.produkId === tgt.skuId) || (boms.length > 0 ? boms[0] : null);
+      
+      const multiplierFresh = matchingBom?.bahanBakuKg || 1.2;
+      const multiplierOil = matchingBom?.minyakLiter || 0.15;
+      const multiplierLPG = matchingBom?.lpgKg || 0.20;
+
+      const freshFruitNeededKg = tgt.targetPcs * multiplierFresh;
+      const fruitCost = freshFruitNeededKg * 12000;
+
+      const skuVarian = skuObj.varian || '';
+      const matchingFruitMaster = (state?.fruitVariants || []).find((fv: any) => fv?.nama && skuVarian && fv.nama.toLowerCase().includes(skuVarian.toLowerCase())) || (state?.fruitVariants || [])[0];
+
+      result.fruit.push({
+        id: matchingFruitMaster?.id || 'FV-XX',
+        nama: `${skuVarian || 'Produk'} Segar (Bahan Baku)`,
+        qtyNeeded: freshFruitNeededKg,
+        unit: 'Kg',
+        costEst: fruitCost,
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const matchPouch = (state?.packagingMaster || []).find((pm: any) => pm.kategori === 'Standing Pouch') || { id: 'PK-001', nama: 'Standing Pouch Pack', standardCost: 450, unit: 'Pcs' };
+      result.packaging.push({
+        id: matchPouch.id,
+        nama: matchPouch.nama,
+        qtyNeeded: tgt.targetPcs,
+        unit: 'Pcs',
+        costEst: tgt.targetPcs * (matchPouch.standardCost || 450),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const matchLabel = (state?.packagingMaster || []).find((pm: any) => pm.kategori === 'Sticker' || pm.kategori === 'Label') || { id: 'PK-005', nama: 'Label Sticker Agridea', standardCost: 150, unit: 'Pcs' };
+      result.packaging.push({
+        id: matchLabel.id,
+        nama: matchLabel.nama,
+        qtyNeeded: tgt.targetPcs,
+        unit: 'Pcs',
+        costEst: tgt.targetPcs * (matchLabel.standardCost || 150),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const boxCount = Math.ceil(tgt.targetPcs * 0.0417);
+      const matchCarton = (state?.packagingMaster || []).find((pm: any) => pm.kategori === 'Carton' || pm.kategori === 'Box') || { id: 'PK-004', nama: 'Carton Box Agridea', standardCost: 8500, unit: 'Pcs' };
+      result.packaging.push({
+        id: matchCarton.id,
+        nama: matchCarton.nama,
+        qtyNeeded: boxCount,
+        unit: 'Pcs',
+        costEst: boxCount * (matchCarton.standardCost || 8500),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const matchSilica = (state?.packagingMaster || []).find((pm: any) => pm.kategori === 'Silica Gel') || { id: 'PK-006', nama: 'Silica Gel Pack', standardCost: 45, unit: 'Pcs' };
+      result.packaging.push({
+        id: matchSilica.id,
+        nama: matchSilica.nama,
+        qtyNeeded: tgt.targetPcs,
+        unit: 'Pcs',
+        costEst: tgt.targetPcs * (matchSilica.standardCost || 45),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const tapeRolls = Math.ceil(boxCount / 10);
+      const matchTape = (state?.supportingMaster || []).find((sm: any) => sm.nama && sm.nama.toLowerCase().includes('lakban')) || { id: 'SP-011', nama: 'Lakban Coklat Opp Tape', standardCost: 12000, unit: 'Roll' };
+      result.supporting.push({
+        id: matchTape.id,
+        nama: matchTape.nama,
+        qtyNeeded: tapeRolls,
+        unit: 'Roll',
+        costEst: tapeRolls * (matchTape.standardCost || 12000),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const matchMerang = (state?.supportingMaster || []).find((sm: any) => sm.nama && sm.nama.toLowerCase().includes('kertas merang')) || { id: 'SP-001', nama: 'Kertas Merang Peniris', standardCost: 120, unit: 'Pcs' };
+      result.supporting.push({
+        id: matchMerang.id,
+        nama: matchMerang.nama,
+        qtyNeeded: tgt.targetPcs,
+        unit: 'Pcs',
+        costEst: tgt.targetPcs * (matchMerang.standardCost || 120),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const matchBarcodeLabel = (state?.supportingMaster || []).find((sm: any) => sm.nama && (sm.nama.toLowerCase().includes('barcode') || sm.nama.toLowerCase().includes('sku'))) || { id: 'SP-013', nama: 'Label SKU Barcode Thermal', standardCost: 35, unit: 'Pcs' };
+      result.supporting.push({
+        id: matchBarcodeLabel.id,
+        nama: matchBarcodeLabel.nama,
+        qtyNeeded: tgt.targetPcs,
+        unit: 'Pcs',
+        costEst: tgt.targetPcs * (matchBarcodeLabel.standardCost || 35),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const oilNeeded = tgt.targetPcs * multiplierOil;
+      const matchOil = (state?.chemicalsMaster || []).find((cc: any) => cc.kategori === 'Minyak Kelapa' || (cc.nama && cc.nama.toLowerCase().includes('minyak'))) || { id: 'CC-101', nama: 'Minyak Kelapa Premium', standardCost: 18500, unit: 'Liter' };
+      result.chemicals.push({
+        id: matchOil.id,
+        nama: matchOil.nama,
+        qtyNeeded: oilNeeded,
+        unit: 'Liter',
+        costEst: oilNeeded * (matchOil.standardCost || 18500),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const gasKg = tgt.targetPcs * multiplierLPG;
+      const gasTubes = Math.ceil(gasKg / 50);
+      const matchGas = (state?.chemicalsMaster || []).find((cc: any) => cc.nama && (cc.nama.toLowerCase().includes('lpg') || cc.nama.toLowerCase().includes('gas'))) || { id: 'CC-102', nama: 'LPG Pertamina Industri 50kg', standardCost: 950000, unit: 'Tabung' };
+      result.chemicals.push({
+        id: matchGas.id,
+        nama: matchGas.nama,
+        qtyNeeded: gasTubes,
+        unit: 'Tabung',
+        costEst: gasTubes * (matchGas.standardCost || 950000),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+
+      const sanitizerQty = Math.ceil(tgt.targetPcs / 1000);
+      const matchSanitizer = (state?.chemicalsMaster || []).find((cc: any) => cc.nama && (cc.nama.toLowerCase().includes('sanitizer') || cc.kategori === 'Aseptic/Sanitizer')) || { id: 'CC-007', nama: 'Sanitizer Spray Anti-Bacterial', standardCost: 45000, unit: 'Liter' };
+      result.chemicals.push({
+        id: matchSanitizer.id,
+        nama: matchSanitizer.nama,
+        qtyNeeded: sanitizerQty,
+        unit: 'Liter',
+        costEst: sanitizerQty * (matchSanitizer.standardCost || 45000),
+        sourceSku: skuObj.sku || skuObj.id
+      });
+    });
+
+    const consolidate = (list: any[]) => {
+      const grouped: { [id: string]: any } = {};
+      list.forEach(item => {
+        if (!grouped[item.id]) {
+          grouped[item.id] = { ...item, sourceSkus: [item.sourceSku] };
+        } else {
+          grouped[item.id].qtyNeeded += item.qtyNeeded;
+          grouped[item.id].costEst += item.costEst;
+          if (!grouped[item.id].sourceSkus.includes(item.sourceSku)) {
+            grouped[item.id].sourceSkus.push(item.sourceSku);
+          }
+        }
+      });
+      return Object.values(grouped);
+    };
+
+    result.fruit = consolidate(result.fruit);
+    result.packaging = consolidate(result.packaging);
+    result.supporting = consolidate(result.supporting);
+    result.chemicals = consolidate(result.chemicals);
+
+    let grandBudget = 0;
+    result.fruit.forEach(x => grandBudget += x.costEst);
+    result.packaging.forEach(x => grandBudget += x.costEst);
+    result.supporting.forEach(x => grandBudget += x.costEst);
+    result.chemicals.forEach(x => grandBudget += x.costEst);
+
+    result.totals.totalBudget = grandBudget;
+
+    return result;
+  }, [mrpViewMode, mrpTargetKg, mrpSelectedSku, plans, selectedPlanFactory, selectedMonth, selectedYear, state?.produk, state?.bom, state?.fruitVariants, state?.packagingMaster, state?.supportingMaster, state?.chemicalsMaster]);
 
   // Toggle editor form
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -295,11 +574,11 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
     try {
       const savedMaint = localStorage.getItem('agridea_maintenance_reports');
       const maintList = savedMaint ? JSON.parse(savedMaint) : [];
-      const activeMaint = maintList.filter((m: any) => m.lokasiId === selectedPlanFactory && m.status !== 'Completed').length;
+      const activeMaint = maintList.filter((m: any) => m && m.lokasiId === selectedPlanFactory && m.status !== 'Completed').length;
 
       const savedAudit = localStorage.getItem('agridea_audit_reports');
       const auditList = savedAudit ? JSON.parse(savedAudit) : [];
-      const activeAudit = auditList.filter((a: any) => a.status === 'Open').length;
+      const activeAudit = auditList.filter((a: any) => a && a.status === 'Open').length;
 
       return { activeMaint, activeAudit };
     } catch (e) {
@@ -307,38 +586,14 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
     }
   }, [selectedPlanFactory, plans]);
 
-  // Master Data mapping helpers
-  const activeFruitVariants = useMemo(() => {
-    return (state.fruitVariants || []).filter((fv: any) => fv.status === 'Active' || fv.status === 'Aktif' || fv.status === 'active');
-  }, [state.fruitVariants]);
-
-  const activeChipVariants = useMemo(() => {
-    return (state.chipVariants || []).filter((cv: any) => cv.status === 'Active' || cv.status === 'Aktif' || cv.status === 'active');
-  }, [state.chipVariants]);
-
-  const fruitIdToName = (id: string) => {
-    const f = (state.fruitVariants || []).find((v: any) => v.id === id);
-    return f ? f.nama : id;
-  };
-
-  const chipIdToName = (id: string) => {
-    const c = (state.chipVariants || []).find((v: any) => v.id === id);
-    return c ? c.nama : id;
-  };
-
-  const fruitNameToId = (name: string) => {
-    const found = (state.fruitVariants || []).find((v: any) => v.nama.trim().toLowerCase() === name.trim().toLowerCase());
-    return found?.id || '';
-  };
-
   // Find active plan based on filters
   const activePlan = useMemo(() => {
-    return plans.find(p => p.lokasiId === selectedPlanFactory && p.bulan === selectedMonth && p.tahun === selectedYear);
+    return plans.find(p => p && p.lokasiId === selectedPlanFactory && p.bulan === selectedMonth && p.tahun === selectedYear);
   }, [plans, selectedPlanFactory, selectedMonth, selectedYear]);
 
   // Handle auto-calc of Vacuum Frying capacity factors in form
   useEffect(() => {
-    const calculatedCapacity = editFrozenInputPerCycleKg * editVacuumFryingMachines * editDailyCycles;
+    const calculatedCapacity = (editFrozenInputPerCycleKg || 50) * (editVacuumFryingMachines || 3) * (editDailyCycles || 10);
     setEditCapacity(calculatedCapacity);
   }, [editFrozenInputPerCycleKg, editVacuumFryingMachines, editDailyCycles]);
 
@@ -454,10 +709,10 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
     setEditVacuumFryingMachines(activePlan.vacuumFryingMachines || 3);
     setEditDailyCycles(activePlan.dailyCycles || 10);
 
-    setEditProcPlan([...activePlan.procurementPlan]);
-    setEditPeelPlan([...activePlan.peelingPlan]);
-    setEditProdPlan([...activePlan.productionPlan]);
-    setEditInvPlan([...activePlan.inventoryPlan]);
+    setEditProcPlan([...(activePlan.procurementPlan || [])]);
+    setEditPeelPlan([...(activePlan.peelingPlan || [])]);
+    setEditProdPlan([...(activePlan.productionPlan || [])]);
+    setEditInvPlan([...(activePlan.inventoryPlan || [])]);
     setEditKeripikPlan([...(activePlan.keripikOutputPlan || [])]);
     
     setIsEditing(true);
@@ -662,16 +917,16 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
 
   // Aggregate consolidated figures for charts
   const consolidatedBarChart = useMemo(() => {
-    if (!activePlan) return [];
+    if (!activePlan || !activePlan.procurementPlan || !Array.isArray(activePlan.procurementPlan)) return [];
     return activePlan.procurementPlan.map(p => {
-      const actualProcKg = actualData.procurement[p.fruitVariantId] || 0;
+      const actualProcKg = (actualData?.procurement && actualData.procurement[p.fruitVariantId]) || 0;
       return {
         name: fruitIdToName(p.fruitVariantId),
-        "Planned Target (Kg)": p.targetKg,
+        "Planned Target (Kg)": p.targetKg || 0,
         "Actual Achievement (Kg)": actualProcKg
       };
     });
-  }, [activePlan, actualData, state.fruitVariants]);
+  }, [activePlan, actualData, state?.fruitVariants]);
 
   return (
     <div className="space-y-6" id="production-planning-performance-module">
@@ -757,7 +1012,7 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
           <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Active Planned Fruits</div>
           <h3 className="text-xl font-mono font-black text-emerald-700 mt-1">
-            {activePlan ? `${activePlan.procurementPlan.length} Variants` : '0 Variants'}
+            {activePlan?.procurementPlan ? `${activePlan.procurementPlan.length} Variants` : '0 Variants'}
           </h3>
           <p className="text-[10.5px] text-slate-500 font-medium mt-1 leading-none">
             Min requirement: 5 variants
@@ -1186,6 +1441,12 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
           Consolidated Operational View
         </button>
         <button
+          onClick={() => setActiveTab('mrp')}
+          className={`py-2 px-4 rounded-lg font-bold text-xs select-none transition flex items-center gap-1.5 uppercase ${activeTab === 'mrp' ? 'bg-emerald-600 text-white font-extrabold' : 'text-emerald-400 hover:text-white'}`}
+        >
+          <Database className="w-4 h-4" /> MRP &amp; Materials (BOM Explosion)
+        </button>
+        <button
           onClick={() => setActiveTab('ai-insights')}
           className={`py-2 px-4 rounded-lg font-bold text-xs select-none transition flex items-center gap-1.5 uppercase ${activeTab === 'ai-insights' ? 'bg-purple-650 text-white font-extrabold bg-purple-600' : 'text-purple-400 hover:text-white'}`}
         >
@@ -1218,10 +1479,10 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
                     </tr>
                   </thead>
                   <tbody className="divide-y font-semibold text-slate-700">
-                    {activePlan.procurementPlan.map((p, idx) => {
-                      const actualProc = actualData.procurement[p.fruitVariantId] || 0;
-                      const peelPlan = activePlan.peelingPlan[idx] || { netFrozenOutputKg: 0 };
-                      const prodPlan = activePlan.productionPlan[idx] || { vfYieldTargetPercent: 40 };
+                    {(activePlan?.procurementPlan || []).map((p, idx) => {
+                      const actualProc = (actualData?.procurement && actualData.procurement[p.fruitVariantId]) || 0;
+                      const peelPlan = (activePlan?.peelingPlan && activePlan.peelingPlan[idx]) || { netFrozenOutputKg: 0 };
+                      const prodPlan = (activePlan?.productionPlan && activePlan.productionPlan[idx]) || { vfYieldTargetPercent: 40 };
                       
                       return (
                         <tr key={p.fruitVariantId} className="hover:bg-slate-50/70">
@@ -1290,7 +1551,7 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
                   <BarChart data={consolidatedBarChart}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tick={{ fontSize: 9 }} formatter={(v) => `${v}kg`} />
+                    <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `${v}kg`} />
                     <Tooltip formatter={(v) => `${(v as number).toLocaleString()} Kg`} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
                     <Bar dataKey="Planned Target (Kg)" fill="#e2e8f0" radius={[4, 4, 0, 0]} />
@@ -1343,6 +1604,325 @@ export default function ProductionPlanning({ state, setState, selectedLokasi, cu
                   {Object.values(actualData.chipsOutputKg).reduce((sum: number, val: any) => sum + (Number(val) || 0), 0).toLocaleString()} Kg
                 </div>
                 <p className="text-[9.5px] text-slate-500 font-semibold font-bold">Aggregated finished retail pouches</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 2.5 MRP & MATERIALS EXPLOSION PANEL */}
+      {activeTab === 'mrp' && (
+        <div className="space-y-6 animate-fade-in" id="mrp-explosion-panel">
+          {/* Header Info */}
+          <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+            <div className="space-y-1">
+              <h3 className="text-base font-black text-slate-800 tracking-tight font-display flex items-center gap-2">
+                <Database className="w-5 h-5 text-emerald-600 animate-pulse" />
+                Material Requirements Planning (MRP) &amp; BOM Explosion
+              </h3>
+              <p className="text-slate-500 font-medium">
+                Pecah target output produksi menjadi kebutuhan bahan baku segar, kemasan primer/sekunder, material helper packing, serta chemical industri secara real-time.
+              </p>
+            </div>
+
+            {/* MRP Control Toggles */}
+            <div className="flex flex-wrap items-center gap-3 bg-slate-100 p-1.5 rounded-xl border border-slate-200">
+              <button
+                onClick={() => setMrpViewMode('active-plan')}
+                className={`px-4 py-2 rounded-lg text-[11px] font-bold select-none transition ${mrpViewMode === 'active-plan' ? 'bg-indigo-650 text-white bg-indigo-600 shadow-sm' : 'text-slate-600 hover:text-indigo-600'}`}
+              >
+                Gunakan Master Target Bulan Berjalan
+              </button>
+              <button
+                onClick={() => setMrpViewMode('simulate')}
+                className={`px-4 py-2 rounded-lg text-[11px] font-bold select-none transition ${mrpViewMode === 'simulate' ? 'bg-indigo-650 text-white bg-indigo-600 shadow-sm' : 'text-slate-600 hover:text-indigo-600'}`}
+              >
+                Simulasi Target Kustom (Interactive)
+              </button>
+            </div>
+          </div>
+
+          {/* SIMULATION FORM SHELF */}
+          {mrpViewMode === 'simulate' && (
+            <div className="bg-gradient-to-br from-indigo-50 to-emerald-50/50 p-5 rounded-2xl border border-slate-200 shadow-sm grid grid-cols-1 md:grid-cols-3 gap-5 animate-fade-in">
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider block">Pilih SKU Variant / Finished Goods</label>
+                <select
+                  value={mrpSelectedSku}
+                  onChange={(e) => setMrpSelectedSku(e.target.value)}
+                  className="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-bold font-mono focus:ring-2 focus:ring-slate-900 focus:outline-none"
+                >
+                  {(state.produk || []).map((p: any) => (
+                    <option key={p.id} value={p.id} className="font-mono">
+                      {p.id} - {p.nama} [SKU: {p.sku}]
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[11px] font-extrabold text-slate-700 uppercase tracking-wider block">Target Output Keripik Jadi (Kg)</label>
+                <div className="relative">
+                  <input
+                    type="number"
+                    value={mrpTargetKg}
+                    onChange={(e) => setMrpTargetKg(Math.max(1, Number(e.target.value)))}
+                    className="w-full bg-white border border-slate-200 rounded-xl p-2.5 font-black font-mono focus:ring-2 focus:ring-slate-900 focus:outline-none pr-10"
+                    placeholder="Contoh: 1000"
+                    min="1"
+                  />
+                  <span className="absolute right-3.5 top-3 text-slate-400 font-extrabold font-mono">Kg</span>
+                </div>
+              </div>
+
+              <div className="bg-white/80 backdrop-blur-xs p-3.5 rounded-xl border border-indigo-100 flex flex-col justify-center">
+                <span className="text-slate-400 block font-bold uppercase text-[9px] tracking-wide">Fitted Pouches Equivalent:</span>
+                <span className="text-xl font-mono font-black text-indigo-700">
+                  {mrpRequirements.totals.totalTargetPcs.toLocaleString()} Pcs Bags
+                </span>
+                <span className="text-[9.5px] text-slate-500 font-semibold leading-none mt-1">
+                  Dihitung berbasis gramasi kemasan kustom master data.
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* ACTIVE PLAN LIST DISPLAY CONTAINER */}
+          {mrpViewMode === 'active-plan' && (
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h4 className="font-extrabold text-slate-800 text-xs uppercase">
+                    📁 TARGET DETAILED OUTPUT BUILT-IN ({selectedPlanFactory} - JUNI 2026)
+                  </h4>
+                  <p className="text-slate-400 text-[10px]">Material Requirement Planning meledakkan (explosion) data target di bawah ini:</p>
+                </div>
+                <div className="bg-emerald-50 text-emerald-800 font-black text-[10.5px] px-3 py-1 rounded-lg border border-emerald-100 uppercase tracking-wider">
+                  Active Operational Target
+                </div>
+              </div>
+
+              {mrpRequirements.targets.length === 0 ? (
+                <div className="p-8 text-center text-slate-400 font-bold border border-dashed border-slate-200 rounded-xl">
+                  Tidak ditemukan target aktif pada Rencana Produksi pabrik {selectedPlanFactory} bulan Juni 2026. Lakukan setup target kemasan terlebih dahulu.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  {mrpRequirements.targets.map(tgt => {
+                    const sku = (state.produk || []).find((p: any) => p.id === tgt.skuId);
+                    return (
+                      <div key={tgt.skuId} className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 space-y-1.5 font-mono">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="bg-indigo-100 text-indigo-800 font-extrabold px-1.5 py-0.5 rounded uppercase">SKU: {sku?.sku || tgt.skuId}</span>
+                          <span className="font-bold text-slate-400">{tgt.skuId}</span>
+                        </div>
+                        <h5 className="font-black text-slate-800 truncate text-[11px] leading-tight block">{sku?.nama || tgt.skuId}</h5>
+                        <div className="flex items-end justify-between pt-1">
+                          <div>
+                            <span className="text-slate-400 block text-[8.5px] uppercase font-extrabold">Volume Target</span>
+                            <span className="text-slate-800 font-extrabold text-xs">{tgt.targetKg.toLocaleString()} Kg</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-slate-400 block text-[8.5px] uppercase font-extrabold">Total Retail Bags</span>
+                            <span className="text-indigo-650 text-xs font-black text-indigo-700">{tgt.targetPcs.toLocaleString()} Bags</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* GRAND METRICS OVERVIEW */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+            <div className="bg-slate-900 text-white p-4.5 rounded-2xl border border-slate-800 shadow-sm space-y-1">
+              <span className="text-slate-400 text-[9px] uppercase font-black uppercase tracking-wider">Total Output Target Kg</span>
+              <div className="text-2xl font-black font-mono tracking-tight text-white">
+                {mrpRequirements.totals.totalTargetKg.toLocaleString()} Kg
+              </div>
+              <p className="text-[10px] text-emerald-300 font-semibold font-sans">Tonase Keripik Bersih</p>
+            </div>
+
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-slate-400 text-[9px] uppercase font-black uppercase tracking-wider">Est. Retail Pouches Pcs</span>
+              <div className="text-2xl font-black font-mono tracking-tight text-indigo-950">
+                {mrpRequirements.totals.totalTargetPcs.toLocaleString()} Pcs
+              </div>
+              <p className="text-[10px] text-slate-500 font-semibold font-sans">Volume Kemasan Retail Bag</p>
+            </div>
+
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-slate-400 text-[9px] uppercase font-black uppercase tracking-wider">Estimated Grand Budget</span>
+              <div className="text-2xl font-black font-mono tracking-tight text-emerald-700">
+                Rp {mrpRequirements.totals.totalBudget.toLocaleString('id-ID')}
+              </div>
+              <p className="text-[10px] text-slate-500 font-semibold font-sans">Fruit + Packing + Help Consumables</p>
+            </div>
+
+            <div className="bg-white p-4.5 rounded-2xl border border-slate-200 shadow-xs space-y-1">
+              <span className="text-slate-400 text-[9px] uppercase font-black uppercase tracking-wider">Ratio Cost Per Pouch</span>
+              <div className="text-2xl font-black font-mono tracking-tight text-slate-800">
+                Rp {mrpRequirements.totals.totalTargetPcs > 0 ? Math.round(mrpRequirements.totals.totalBudget / mrpRequirements.totals.totalTargetPcs).toLocaleString('id-ID') : '0'}
+              </div>
+              <p className="text-[10px] text-slate-500 font-semibold font-sans">COGS Material per Pouch Bag</p>
+            </div>
+          </div>
+
+          {/* EXPLODED BILL OF MATERIALS SUMMARY TABLES BY CATEGORY */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 leading-relaxed">
+            
+            {/* Category 1: Raw Fruit Materials */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b pb-2">
+                <span className="text-slate-800 font-black text-xs uppercase flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-orange-500 rounded-full"></span>
+                  1. Fresh Fruit Raw Materials [Buah Segar]
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">Fruit Variants Master</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {mrpRequirements.fruit.length === 0 ? (
+                  <div className="py-4 text-center text-slate-400 font-bold">Tidak ada kebutuhan bahan baku segar.</div>
+                ) : (
+                  mrpRequirements.fruit.map(item => (
+                    <div key={item.id} className="py-2.5 flex items-center justify-between font-mono text-[11px]">
+                      <div>
+                        <span className="text-slate-800 font-extrabold block">{item.nama}</span>
+                        <span className="text-slate-400 text-[9px] uppercase">Master Code: {item.id}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-800 font-black block text-indigo-950 text-xs">
+                          {item.qtyNeeded.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} {item.unit}
+                        </span>
+                        <span className="text-slate-400 text-[9.5px]">Est. Rp {item.costEst.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Category 2: Packaging Materials */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b pb-2">
+                <span className="text-slate-800 font-black text-xs uppercase flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-blue-500 rounded-full"></span>
+                  2. Packaging Materials [Bahan Kemas]
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">Packaging Master</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {mrpRequirements.packaging.length === 0 ? (
+                  <div className="py-4 text-center text-slate-400 font-bold">Tidak ada kebutuhan packaging.</div>
+                ) : (
+                  mrpRequirements.packaging.map(item => (
+                    <div key={item.id} className="py-2.5 flex items-center justify-between font-mono text-[11px]">
+                      <div>
+                        <span className="text-slate-800 font-extrabold block">{item.nama}</span>
+                        <span className="text-slate-400 text-[9px] uppercase">Master Code: {item.id}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-800 font-black block text-indigo-950 text-xs">
+                          {item.qtyNeeded.toLocaleString()} {item.unit}
+                        </span>
+                        <span className="text-slate-400 text-[9.5px]">Est. Rp {item.costEst.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Category 3: Supporting Packing Materials */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b pb-2">
+                <span className="text-slate-800 font-black text-xs uppercase flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-yellow-500 rounded-full"></span>
+                  3. Supporting Materials [Helper &amp; Packing]
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">Supporting Master</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {mrpRequirements.supporting.length === 0 ? (
+                  <div className="py-4 text-center text-slate-400 font-bold">Tidak ada kebutuhan supporting materials.</div>
+                ) : (
+                  mrpRequirements.supporting.map(item => (
+                    <div key={item.id} className="py-2.5 flex items-center justify-between font-mono text-[11px]">
+                      <div>
+                        <span className="text-slate-800 font-extrabold block">{item.nama}</span>
+                        <span className="text-slate-400 text-[9px] uppercase">Master Code: {item.id}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-800 font-black block text-indigo-950 text-xs">
+                          {item.qtyNeeded.toLocaleString()} {item.unit}
+                        </span>
+                        <span className="text-slate-400 text-[9.5px]">Est. Rp {item.costEst.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Category 4: Chemicals & Consumables */}
+            <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+              <div className="flex items-center justify-between border-b pb-2">
+                <span className="text-slate-800 font-black text-xs uppercase flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 bg-purple-500 rounded-full"></span>
+                  4. Chemicals &amp; Consumables [Bahan Penunjang &amp; Utilitas]
+                </span>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">Chemicals Master</span>
+              </div>
+              <div className="divide-y divide-slate-100">
+                {mrpRequirements.chemicals.length === 0 ? (
+                  <div className="py-4 text-center text-slate-400 font-bold">Tidak ada kebutuhan chemical consumables.</div>
+                ) : (
+                  mrpRequirements.chemicals.map(item => (
+                    <div key={item.id} className="py-2.5 flex items-center justify-between font-mono text-[11px]">
+                      <div>
+                        <span className="text-slate-800 font-extrabold block">{item.nama}</span>
+                        <span className="text-slate-400 text-[9px] uppercase">Master Code: {item.id}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-slate-800 font-black block text-indigo-950 text-xs">
+                          {item.qtyNeeded.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} {item.unit}
+                        </span>
+                        <span className="text-slate-400 text-[9.5px]">Est. Rp {item.costEst.toLocaleString('id-ID')}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* BOM Standard Info Card */}
+          <div className="bg-slate-50 p-5 rounded-2xl border border-slate-200 shadow-xs space-y-2 font-medium">
+            <h4 className="font-extrabold text-slate-800 text-[10px] uppercase tracking-wider flex items-center gap-1.5">
+              <Info className="w-4 h-4 text-indigo-650" />
+              Standard Bill of Materials (BOM) Formula Explanation
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-[10.5px] leading-relaxed text-slate-650">
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1">
+                <span className="font-extrabold text-slate-800 block">🍎 Apple Pouch (100g)</span>
+                <p>Kebutuhan Buah Segar: 1.2 Kg/pouch (HPP Rp 14,400)</p>
+                <p>Minyak Kelapa: 0.15 Liter/pouch (HPP Rp 2,775)</p>
+                <p>Gast LPG: 0.20 Kg/pouch (HPP Rp 3,800)</p>
+              </div>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1">
+                <span className="font-extrabold text-slate-800 block">🍌 Banana Pouch (100g)</span>
+                <p>Kebutuhan Buah Segar: 1.4 Kg/pouch (HPP Rp 16,800)</p>
+                <p>Minyak Kelapa: 0.16 Liter/pouch (HPP Rp 2,960)</p>
+                <p>Gast LPG: 0.21 Kg/pouch (HPP Rp 3,990)</p>
+              </div>
+              <div className="bg-white p-3.5 rounded-xl border border-slate-200 space-y-1">
+                <span className="font-extrabold text-slate-800 block">🍍 Pineapple Pouch (100g)</span>
+                <p>Kebutuhan Buah Segar: 1.3 Kg/pouch (HPP Rp 15,600)</p>
+                <p>Minyak Kelapa: 0.15 Liter/pouch (HPP Rp 2,775)</p>
+                <p>Gast LPG: 0.20 Kg/pouch (HPP Rp 3,800)</p>
               </div>
             </div>
           </div>

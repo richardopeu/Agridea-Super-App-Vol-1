@@ -412,3 +412,64 @@ export interface AuditLog {
   newValue?: string;
   reason?: string;
 }
+
+export type FacilityCategory = 'pabrik' | 'mitra_tani' | 'hq_hub' | 'mitra_supplier' | 'mitra_lahan';
+
+export interface FacilityNetworkEntity {
+  id: string;
+  name: string;
+  category: FacilityCategory;
+  phone: string;
+  rawMaterial: string;
+  harvestCapacity: string;
+  lat: number;
+  lng: number;
+  landArea: string;
+  harvestMonths: string;
+  pricePerKg: number;
+  pic: string;
+  city: string;
+  province: string;
+  address: string;
+  status: 'Operasional' | 'Masa Panen' | 'Persiapan Tanam' | 'Siap Kirim';
+  description?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface HarvestQualityStandard {
+  brixLevel: string;
+  waterContent: string;
+  ripenessGrade: string;
+  sortingCriteria: string;
+}
+
+export interface HarvestRecommendationItem {
+  name: string;
+  category: 'Buah' | 'Sayur';
+  originCenter: string;
+  approxDistanceKm: number;
+  harvestSeasonStatus: string;
+  harvestMonths: string;
+  expectedYieldPercent: string;
+  qualityStandard: HarvestQualityStandard;
+  recommendedPricePerKg: number;
+  marketPriceRange: string;
+  processingNotes: string;
+  strategicAdvantage?: string;
+}
+
+export interface HarvestRadarResult {
+  summary: string;
+  factoryInfo: {
+    name: string;
+    location: string;
+    coordinates: string;
+    radiusKm: number;
+    currentDate: string;
+  };
+  harvestItems: HarvestRecommendationItem[];
+  strategicAdvice: string[];
+  riskAndWeather: string;
+}
+

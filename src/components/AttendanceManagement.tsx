@@ -393,7 +393,7 @@ export default function AttendanceManagement({ state, currentUser, selectedLokas
       const daysPresent = empRecords.filter(r => r.status === 'Present' || r.status === 'Late').length;
       const daysLeave = empRecords.filter(r => r.status === 'Leave').length;
       const daysAbsent = empRecords.filter(r => r.status === 'Absent').length;
-      const sumOvertimeHours = empRecords.reduce((sum, r) => sum + parseFloat(r.overtimeHours || 0), 0);
+      const sumOvertimeHours = empRecords.reduce((sum, r) => sum + Number(r.overtimeHours || 0), 0);
 
       let formulaExplanation = '';
       let wageCalculationDetail = 0;
@@ -869,7 +869,7 @@ export default function AttendanceManagement({ state, currentUser, selectedLokas
                   <BarChart data={barChartData}>
                     <CartesianGrid strokeDasharray="3 3" vertical={false} />
                     <XAxis dataKey="name" tick={{ fontSize: 9 }} />
-                    <YAxis tick={{ fontSize: 9 }} formatter={(v) => `Rp${(v as number)/1000}K`} />
+                    <YAxis tick={{ fontSize: 9 }} tickFormatter={(v) => `Rp${(v as number)/1000}K`} />
                     <Tooltip formatter={(v) => `Rp ${(v as number).toLocaleString()}`} />
                     <Legend wrapperStyle={{ fontSize: 10 }} />
                     <Bar dataKey="base" name="Gaji Pokok / Borongan" fill="#4f46e5" stackId="a" />

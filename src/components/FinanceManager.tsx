@@ -76,11 +76,13 @@ interface Props {
 // Default Bank Accounts
 const DEFAULT_BANKS = [
   { id: 'bank-bca-op', name: 'BCA Operational', accountNumber: '8220918239', accountHolder: 'PT AGRIDEA FOOD HQ', branch: 'KCU Malang', currency: 'IDR', openingBalance: 500000000, currentBalance: 512400000 },
-  { id: 'bank-mandiri-pro', name: 'Mandiri Procurement', accountNumber: '144009823121', accountHolder: 'PT AGRIDEA FOOD HQ', branch: 'Malang Sutoyo', currency: 'IDR', openingBalance: 250000000, currentBalance: 242000000 },
-  { id: 'bank-bri-mpd', name: 'BRI Factory MPD', accountNumber: '001201992834534', accountHolder: 'M. Shodik (Unit MPD)', branch: 'Sedayu, Malang', currency: 'IDR', openingBalance: 120000000, currentBalance: 125300000 },
-  { id: 'bank-bca-agdn', name: 'BCA AGDN', accountNumber: '8224501982', accountHolder: 'Hendra Wijaya (AGDN)', branch: 'KCP Singosari', currency: 'IDR', openingBalance: 180000000, currentBalance: 184500000 },
-  { id: 'bank-coh', name: 'Cash On Hand', accountNumber: 'COH-HQ', accountHolder: 'Finance Cashier', branch: 'HQ Cashier Desk', currency: 'IDR', openingBalance: 45000000, currentBalance: 42100000 },
-  { id: 'bank-pc', name: 'Petty Cash', accountNumber: 'PC-ALL-LOCS', accountHolder: 'Branch Admins Ledger', branch: 'Consolidated Branches', currency: 'IDR', openingBalance: 34000000, currentBalance: 31200000 }
+  { id: 'bank-mandiri-agdin', name: 'MANDIRI AGDIN', accountNumber: '144009823121', accountHolder: 'PT AGRIDEA FOOD AGDN', branch: 'Sutoyo AGDN', currency: 'IDR', openingBalance: 250000000, currentBalance: 242000000 },
+  { id: 'bank-bni-ssp', name: 'BNI SSP', accountNumber: '124908123012', accountHolder: 'PT AGRIDEA FOOD SSP', branch: 'Batu SSP', currency: 'IDR', openingBalance: 150000000, currentBalance: 158200000 },
+  { id: 'bank-bni-mpd', name: 'BNI MPD', accountNumber: '124908123013', accountHolder: 'PT AGRIDEA FOOD MPD', branch: 'Barat MPD', currency: 'IDR', openingBalance: 120000000, currentBalance: 125300000 },
+  { id: 'bank-bni-kki', name: 'BNI KKI', accountNumber: '124908123014', accountHolder: 'PT AGRIDEA FOOD KKI', branch: 'Malang KKI', currency: 'IDR', openingBalance: 175000000, currentBalance: 171200000 },
+  { id: 'bank-bni-maijus', name: 'BNI MAIJUS', accountNumber: '124908123015', accountHolder: 'PT AGRIDEA FOOD MAIJUS', branch: 'Malang MAIJUS', currency: 'IDR', openingBalance: 210000000, currentBalance: 214500000 },
+  { id: 'bank-coh', name: 'cash on hand', accountNumber: 'COH-HQ', accountHolder: 'Finance Cashier', branch: 'HQ Cashier Desk', currency: 'IDR', openingBalance: 45000000, currentBalance: 42100000 },
+  { id: 'bank-pc', name: 'petty cash', accountNumber: 'PC-ALL-LOCS', accountHolder: 'Branch Admins Ledger', branch: 'Consolidated Branches', currency: 'IDR', openingBalance: 34000000, currentBalance: 31200000 }
 ];
 
 export default function FinanceManager({ state, activeMenu, currentUser, onNavigate }: Props) {
@@ -174,46 +176,157 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
     });
   }, [bankTransactions, selectedLedgerAccount, bankAccounts]);
 
-  // --- ACCOUNTS PAYABLE (Supplier Debt) ---
-  const [customAPInvoices, setCustomAPInvoices] = useState<any[]>([
-    { id: 'INV-AP-091', supplierName: 'Agro Sentosa Mandiri (SUP-01)', invoiceNumber: 'INV/20260520/SUP-01', invoiceDate: '2026-05-20', dueDate: '2026-06-19', amount: 25000000, tax: 2750000, status: 'Outstanding', attachment: 'inv_ap_091.pdf' },
-    { id: 'INV-AP-092', supplierName: 'Sinar Petani Batu (SUP-02)', invoiceNumber: 'INV/20260522/SUP-02', invoiceDate: '2026-05-22', dueDate: '2026-06-03', amount: 15400000, tax: 1694000, status: 'Overdue', attachment: 'inv_ap_092.pdf' },
-    { id: 'INV-AP-093', supplierName: 'Karton Indopack Jaya (SUP-03)', invoiceNumber: 'INV/20260525/SUP-03', invoiceDate: '2026-05-25', dueDate: '2026-06-25', amount: 8400000, tax: 924000, status: 'Partially Paid', attachment: 'inv_ap_093.pdf' },
-    { id: 'INV-AP-094', supplierName: 'Gas Elpigi Pertamina Utama', invoiceNumber: 'UTL-GAS-2026-05', invoiceDate: '2026-05-28', dueDate: '2026-06-28', amount: 12500000, tax: 1375000, status: 'Outstanding', attachment: 'inv_ap_094.pdf' }
+  // --- ENTERPRISE ACCOUNTS PAYABLE (AP) SYSTEM STATE ---
+  const [apList, setApList] = useState<any[]>([
+    {
+      id: 'INV-AP-091',
+      apNumber: 'AP-2026-0001',
+      supplierName: 'Agro Sentosa Mandiri (SUP-01)',
+      factory: 'MPD',
+      invoiceNumber: 'INV/20260520/SUP-01',
+      invoiceDate: '2026-05-20',
+      dueDate: '2026-06-19',
+      currency: 'IDR',
+      amount: 25000000,
+      tax: 2750000,
+      totalAmount: 27750000,
+      paymentTerms: 'NET 30',
+      notes: 'Pembelian bahan baku apel Malang kualitas grade A.',
+      status: 'Approved',
+      attachments: [
+        { name: 'Supplier_Invoice_SUP01.pdf', type: 'application/pdf' },
+        { name: 'PO_Agreement_01.pdf', type: 'application/pdf' },
+        { name: 'Surat_Jalan_MPD.pdf', type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'Draft Created', date: '2026-05-20', user: 'Hendra Admin' },
+        { action: 'Submitted', date: '2026-05-20', user: 'Hendra Admin' },
+        { action: 'Invoice Verified', date: '2026-05-21', user: 'Fiona Finance Staff' },
+        { action: 'Multi-Stage Approved', date: '2026-05-22', user: 'Budi Factory Manager' }
+      ],
+      chkInvoice: true,
+      chkQty: true,
+      chkPO: true,
+      chkPrice: true,
+      chkTax: true,
+      chkDocs: true,
+      verificationRoles: { verifiedBy: 'Fiona Staff', verifiedDate: '2026-05-21' },
+      approvalNodes: { factoryManager: 'Approved', financeHQ: 'Pending', director: 'Pending' },
+      payments: [],
+      scheduledInfo: null,
+      outstandingAmount: 27750000
+    },
+    {
+      id: 'INV-AP-092',
+      apNumber: 'AP-2026-0002',
+      supplierName: 'Sinar Petani Batu (SUP-02)',
+      factory: 'SSP',
+      invoiceNumber: 'INV/20260522/SUP-02',
+      invoiceDate: '2026-05-22',
+      dueDate: '2026-06-03',
+      currency: 'IDR',
+      amount: 15400000,
+      tax: 1694000,
+      totalAmount: 17094000,
+      paymentTerms: 'NET 15',
+      notes: 'Utilitas material & jeruk purut.',
+      status: 'Verified',
+      attachments: [
+        { name: 'Invoice_SUP02.pdf', type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'Draft Created', date: '2026-05-22', user: 'Fajar Malang' },
+        { action: 'Submitted', date: '2026-05-22', user: 'Fajar Malang' },
+        { action: 'Invoice Verified', date: '2026-05-24', user: 'Tony Finance Staff' }
+      ],
+      chkInvoice: true,
+      chkQty: true,
+      chkPO: true,
+      chkPrice: true,
+      chkTax: true,
+      chkDocs: true,
+      verificationRoles: { verifiedBy: 'Tony Finance Staff', verifiedDate: '2026-05-24' },
+      approvalNodes: { factoryManager: 'Pending', financeHQ: 'Pending', director: 'Pending' },
+      payments: [],
+      scheduledInfo: null,
+      outstandingAmount: 17094000
+    },
+    {
+      id: 'INV-AP-093',
+      apNumber: 'AP-2026-0003',
+      supplierName: 'Karton Indopack Jaya (SUP-03)',
+      factory: 'AGDN',
+      invoiceNumber: 'INV/20260525/SUP-03',
+      invoiceDate: '2026-05-25',
+      dueDate: '2026-06-25',
+      currency: 'IDR',
+      amount: 8400000,
+      tax: 924000,
+      totalAmount: 9324000,
+      paymentTerms: 'NET 30',
+      notes: 'Kemasan berdiri standing pouch custom printed.',
+      status: 'Partially Paid',
+      attachments: [
+        { name: 'Invoice_SUP03.pdf', type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'Draft Created', date: '2026-05-25', user: 'Sandy Admin' },
+        { action: 'Submitted', date: '2026-05-25', user: 'Sandy Admin' },
+        { action: 'Invoice Verified', date: '2026-05-26', user: 'HQ Finance Staff' },
+        { action: 'Approved', date: '2026-05-26', user: 'Finance HQ' },
+        { action: 'Scheduled For Payment', date: '2026-05-27', user: 'HQ Finance Staff' },
+        { action: 'Partial Payment Made (50%)', date: '2026-05-28', user: 'Sandy Admin' }
+      ],
+      chkInvoice: true,
+      chkQty: true,
+      chkPO: true,
+      chkPrice: true,
+      chkTax: true,
+      chkDocs: true,
+      verificationRoles: { verifiedBy: 'HQ Finance Staff', verifiedDate: '2026-05-26' },
+      approvalNodes: { factoryManager: 'Approved', financeHQ: 'Approved', director: 'Pending' },
+      payments: [
+        { paymentId: 'PMT-AP-101', date: '2026-05-28', method: 'Transfer BCA Operational', bankAccount: 'bank-bca-op', reference: 'REF-BCA-9801', amount: 4662000, attachment: 'Transfer_Proof_101.png', notes: 'First partial payment' }
+      ],
+      scheduledInfo: { date: '2026-06-12', priority: 'High', bank: 'bank-bca-op' },
+      outstandingAmount: 4662000
+    },
+    {
+      id: 'INV-AP-094',
+      apNumber: 'AP-2026-0004',
+      supplierName: 'Gas Elpigi Pertamina Utama',
+      factory: 'JKT',
+      invoiceNumber: 'UTL-GAS-2026-05',
+      invoiceDate: '2026-05-28',
+      dueDate: '2026-06-28',
+      currency: 'IDR',
+      amount: 12500000,
+      tax: 1375000,
+      totalAmount: 13875000,
+      paymentTerms: 'NET 30',
+      notes: 'Bahan bakar utilitas boiler gas vacuum fryer.',
+      status: 'Draft',
+      attachments: [],
+      history: [
+        { action: 'Draft Created', date: '2026-05-28', user: 'Admin HQ' }
+      ],
+      chkInvoice: false,
+      chkQty: false,
+      chkPO: false,
+      chkPrice: false,
+      chkTax: false,
+      chkDocs: false,
+      verificationRoles: {},
+      approvalNodes: { factoryManager: 'Pending', financeHQ: 'Pending', director: 'Pending' },
+      payments: [],
+      scheduledInfo: null,
+      outstandingAmount: 13875000
+    }
   ]);
 
-  // AP Invoices automatically generated from 'state.penerimaan' and 'state.purchaseOrders' plus manual ones
   const apInvoices = useMemo(() => {
-    const rawRcv = state.penerimaan || [];
-    const autoInvoices = rawRcv.map((rcv: any, index: number) => {
-      const supplierName = suppliers.find((s: any) => s.id === rcv.supplierId)?.nama || rcv.supplierId || 'Supplier Tani';
-      const receiveDate = new Date(rcv.tanggal);
-      const dueDateObj = new Date(receiveDate.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 Days Out
-      const dueDate = dueDateObj.toISOString().split('T')[0];
-
-      // Determine statuses logically
-      let status: 'Draft' | 'Outstanding' | 'Partially Paid' | 'Paid' | 'Overdue' = 'Outstanding';
-      const isOverdue = dueDateObj.getTime() < new Date('2026-06-05').getTime();
-      
-      if (index === 0) status = 'Paid';
-      else if (isOverdue) status = 'Overdue';
-      else if (index % 3 === 1) status = 'Partially Paid';
-
-      return {
-        id: `INV-AP-AUTO-${rcv.id}`,
-        supplierName,
-        invoiceNumber: `INV/AUTO/${rcv.tanggal.replace(/-/g, '')}/${rcv.id}`,
-        invoiceDate: rcv.tanggal,
-        dueDate,
-        amount: rcv.totalHarga,
-        tax: Math.round(rcv.totalHarga * 0.11),
-        status,
-        attachment: 'auto_generated_receiving_slip.pdf'
-      };
-    });
-
-    return [...customAPInvoices, ...autoInvoices];
-  }, [state.penerimaan, suppliers, customAPInvoices]);
+    return apList;
+  }, [apList]);
 
   // Aging AP Report categorizations based on active '2026-06-05' anchor
   const apAging = useMemo(() => {
@@ -226,12 +339,12 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
     };
 
     apInvoices.forEach(inv => {
-      if (inv.status === 'Paid') return;
+      if (inv.status === 'Closed' || inv.status === 'Paid') return;
       const refDate = new Date('2026-06-05').getTime();
       const invoiceDate = new Date(inv.invoiceDate).getTime();
       const diffDays = Math.floor((refDate - invoiceDate) / (1000 * 60 * 60 * 24));
 
-      const outAmount = inv.status === 'Partially Paid' ? inv.amount * 0.5 : inv.amount;
+      const outAmount = inv.outstandingAmount !== undefined ? inv.outstandingAmount : inv.totalAmount;
       categories.totalOutstanding += outAmount;
 
       if (diffDays <= 30) {
@@ -254,9 +367,9 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
     const purchasesMap: Record<string, number> = {};
 
     apInvoices.forEach(inv => {
-      purchasesMap[inv.supplierName] = (purchasesMap[inv.supplierName] || 0) + inv.amount;
-      if (inv.status !== 'Paid') {
-        const outVal = inv.status === 'Partially Paid' ? inv.amount * 0.5 : inv.amount;
+      purchasesMap[inv.supplierName] = (purchasesMap[inv.supplierName] || 0) + inv.totalAmount;
+      if (inv.status !== 'Closed' && inv.status !== 'Paid') {
+        const outVal = inv.outstandingAmount !== undefined ? inv.outstandingAmount : inv.totalAmount;
         outstandingMap[inv.supplierName] = (outstandingMap[inv.supplierName] || 0) + outVal;
       }
     });
@@ -268,71 +381,96 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
     })).sort((a: any, b: any) => b.outstanding - a.outstanding);
   }, [apInvoices]);
 
-  // Payment scheduling
-  const [apPaymentPlan, setApPaymentPlan] = useState<any[]>([
-    { id: 'PLAN-001', supplier: 'Agro Sentosa Mandiri (SUP-01)', amount: 15000000, scheduledDate: '2026-06-10', bankAccountId: 'bank-bca-op', approvedBy: 'Hendra Finance', status: 'Approved' },
-    { id: 'PLAN-002', supplier: 'Sinar Petani Batu (SUP-02)', amount: 15400000, scheduledDate: '2026-06-06', bankAccountId: 'bank-mandiri-pro', approvedBy: 'Director Sign', status: 'Pending Approval' }
+  // Payment scheduling derived from items scheduled
+  const apPaymentPlan = useMemo(() => {
+    return apList
+      .filter(item => item.status === 'Scheduled For Payment' && item.scheduledInfo)
+      .map(item => ({
+        id: `PLAN-${item.id}`,
+        invoiceId: item.id,
+        supplier: item.supplierName,
+        amount: item.outstandingAmount,
+        scheduledDate: item.scheduledInfo.date,
+        bankAccountId: item.scheduledInfo.bank,
+        approvedBy: item.approvalNodes.financeHQ === 'Approved' ? 'HQ Finance' : 'Factory Admin',
+        status: 'Approved',
+        priority: item.scheduledInfo.priority || 'Normal',
+        factory: item.factory
+      }));
+  }, [apList]);
+
+
+  // --- ENTERPRISE ACCOUNTS RECEIVABLE (AR) SYSTEM STATE ---
+  const [arList, setArList] = useState<any[]>([
+    {
+      id: 'INV-AR-401',
+      arNumber: 'AR-2026-0001',
+      customerName: 'Indogrosir Group Malang (CUST-01)',
+      customerType: 'Wholesaler',
+      factory: 'MPD',
+      invoiceNumber: 'INV/20260531/CUST-01',
+      invoiceDate: '2026-05-31',
+      dueDate: '2026-06-30',
+      amount: 29000000,
+      tax: 3190000,
+      totalInvoice: 32190000,
+      paymentTerms: 'NET 30',
+      notes: 'Wholesale shipment snack crackers.',
+      status: 'Issued',
+      attachments: [
+        { name: 'Kwitansi_401.pdf', type: 'application/pdf' },
+        { name: 'SalesOrder_401.pdf', type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'Draft Created', date: '2026-05-31', user: 'Admin JKT HQ' },
+        { action: 'Invoice Issued', date: '2026-06-01', user: 'Tony Admin' }
+      ],
+      deliveryInfo: null,
+      collections: [],
+      payments: [],
+      outstandingAmount: 32190000
+    },
+    {
+      id: 'INV-AR-402',
+      arNumber: 'AR-2026-0002',
+      customerName: 'Oleh-oleh Brawijaya (CUST-03)',
+      customerType: 'Retailer',
+      factory: 'JKT',
+      invoiceNumber: 'INV/20260601/CUST-03',
+      invoiceDate: '2026-06-01',
+      dueDate: '2026-06-15',
+      amount: 11200000,
+      tax: 1232000,
+      totalInvoice: 12432000,
+      paymentTerms: 'NET 15',
+      notes: 'Pengiriman camilan keripik apel dan nangka sachet.',
+      status: 'Delivered',
+      attachments: [
+        { name: 'Surat_Jalan_Brawijaya.pdf', type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'Draft Created', date: '2026-06-01', user: 'Indri Admin HQ' },
+        { action: 'Invoice Issued', date: '2026-06-01', user: 'Indri Admin HQ' },
+        { action: 'Delivery Dispatched & POD Recorded', date: '2026-06-04', user: 'Driver Anton' }
+      ],
+      deliveryInfo: {
+        deliveryDate: '2026-06-04',
+        receiverName: 'Bapak Heriyanto',
+        signature: 'Yes - Signed',
+        photo: 'pod_box_deliver.png',
+        gpsLocation: '-7.9784, 112.5612'
+      },
+      collections: [
+        { date: '2026-06-05', type: 'Call', note: 'Customer confirmed receiving standard payment cycle email.', contactPerson: 'Ibu Renny' }
+      ],
+      payments: [],
+      outstandingAmount: 12432000
+    }
   ]);
-  const [isAddingPlan, setIsAddingPlan] = useState(false);
-  const [newPlan, setNewPlan] = useState({
-    supplier: '',
-    amount: 5000000,
-    scheduledDate: '2026-06-12',
-    bankAccountId: 'bank-bca-op'
-  });
 
-  const handleCreatePlanSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPlan.supplier) return;
-    const entry = {
-      id: `PLAN-TX-${Math.floor(Math.random() * 90000 + 10000)}`,
-      supplier: newPlan.supplier,
-      amount: newPlan.amount,
-      scheduledDate: newPlan.scheduledDate,
-      bankAccountId: newPlan.bankAccountId,
-      approvedBy: 'Finance Department',
-      status: 'Pending Approval'
-    };
-    setApPaymentPlan(prev => [entry, ...prev]);
-    setIsAddingPlan(false);
-  };
-
-  // --- ACCOUNTS RECEIVABLE (Customer Debt) ---
-  const [customARInvoices, setCustomARInvoices] = useState<any[]>([
-    { id: 'INV-AR-401', customerName: 'Indogrosir Group Malang (CUST-01)', invoiceNumber: 'INV/20260531/CUST-01', invoiceDate: '2026-05-31', dueDate: '2026-06-30', amount: 29000000, paymentTerms: 'NET 30', status: 'Outstanding' },
-    { id: 'INV-AR-402', customerName: 'Oleh-oleh Brawijaya (CUST-03)', invoiceNumber: 'INV/20260601/CUST-03', invoiceDate: '2026-06-01', dueDate: '2026-06-15', amount: 11200000, paymentTerms: 'NET 15', status: 'Outstanding' },
-    { id: 'INV-AR-403', customerName: 'Prima Buah Retail Group', invoiceNumber: 'INV/20260515/CUST-PM', invoiceDate: '2026-05-15', dueDate: '2026-05-30', amount: 48000000, paymentTerms: 'NET 15', status: 'Overdue' }
-  ]);
-
-  // AR Invoices automatically generated from Sales
   const arInvoices = useMemo(() => {
-    const rawSales = state.sales || [];
-    const autoInvoices = rawSales.map((sale: any, index: number) => {
-      const customerName = customers.find((c: any) => c.id === sale.customerId)?.nama || sale.customerId || 'Customer Store';
-      const saleDate = new Date(sale.tanggal);
-      const dueDateObj = new Date(saleDate.getTime() + 30 * 24 * 60 * 60 * 1000);
-      const dueDate = dueDateObj.toISOString().split('T')[0];
-
-      let status: 'Draft' | 'Outstanding' | 'Partially Paid' | 'Paid' | 'Overdue' = 'Outstanding';
-      const isOverdue = dueDateObj.getTime() < new Date('2026-06-05').getTime();
-      
-      if (index === 0) status = 'Paid';
-      else if (isOverdue) status = 'Overdue';
-
-      return {
-        id: `INV-AR-AUTO-${sale.id}`,
-        customerName,
-        invoiceNumber: sale.notaNumber || `INV/SALES/AUTO/${sale.id}`,
-        invoiceDate: sale.tanggal,
-        dueDate,
-        amount: sale.totalInvoice || sale.totalPenjualan || 12000000,
-        paymentTerms: 'NET 30',
-        status
-      };
-    });
-
-    return [...customARInvoices, ...autoInvoices];
-  }, [state.sales, customers, customARInvoices]);
+    return arList;
+  }, [arList]);
 
   // Aging AR Report categorizations
   const arAging = useMemo(() => {
@@ -345,12 +483,12 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
     };
 
     arInvoices.forEach(inv => {
-      if (inv.status === 'Paid') return;
+      if (inv.status === 'Closed' || inv.status === 'Paid') return;
       const refDate = new Date('2026-06-05').getTime();
       const invoiceDate = new Date(inv.invoiceDate).getTime();
       const diffDays = Math.floor((refDate - invoiceDate) / (1000 * 60 * 60 * 24));
 
-      const outAmount = inv.status === 'Partially Paid' ? inv.amount * 0.5 : inv.amount;
+      const outAmount = inv.outstandingAmount !== undefined ? inv.outstandingAmount : inv.totalInvoice;
       categories.totalOutstanding += outAmount;
 
       if (diffDays <= 30) {
@@ -373,15 +511,12 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
     const totalPaid: Record<string, number> = {};
 
     arInvoices.forEach(inv => {
-      if (inv.status === 'Paid') {
-        totalPaid[inv.customerName] = (totalPaid[inv.customerName] || 0) + inv.amount;
-      } else {
-        const outAmount = inv.status === 'Partially Paid' ? inv.amount * 0.5 : inv.amount;
-        totalOut[inv.customerName] = (totalOut[inv.customerName] || 0) + outAmount;
-        if (inv.status === 'Partially Paid') {
-          totalPaid[inv.customerName] = (totalPaid[inv.customerName] || 0) + (inv.amount * 0.5);
-        }
-      }
+      const totInv = inv.totalInvoice;
+      const paidAmt = totInv - (inv.outstandingAmount !== undefined ? inv.outstandingAmount : totInv);
+      const outAmt = inv.outstandingAmount !== undefined ? inv.outstandingAmount : totInv;
+
+      totalPaid[inv.customerName] = (totalPaid[inv.customerName] || 0) + paidAmt;
+      totalOut[inv.customerName] = (totalOut[inv.customerName] || 0) + outAmt;
     });
 
     return Object.keys({ ...totalOut, ...totalPaid }).map((name) => ({
@@ -393,11 +528,497 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
   }, [arInvoices]);
 
 
-  // --- CASH FLOW & FORECAST ENGINE ---
+  // --- ACTIVE AP/AR SELECTION & WORKFLOW ACTION STATES ---
+  const [selectedAP, setSelectedAP] = useState<any | null>(null);
+  const [selectedAR, setSelectedAR] = useState<any | null>(null);
+
+  // Simulation role toggles: Factory Manager, Finance HQ, Director, Operations Admin
+  const [activeUserRole, setActiveUserRole] = useState<'Factory Manager' | 'Finance HQ' | 'Director' | 'Operations Admin'>('Finance HQ');
+  
+  // Dynamic list search & filters
+  const [apSearchText, setApSearchText] = useState('');
+  const [apSelectedFactory, setApSelectedFactory] = useState('ALL');
+  const [apSelectedStatus, setApSelectedStatus] = useState('ALL');
+
+  const [arSearchText, setArSearchText] = useState('');
+  const [arSelectedFactory, setArSelectedFactory] = useState('ALL');
+  const [arSelectedStatus, setArSelectedStatus] = useState('ALL');
+
+  // Multi-stage creation triggers 
+  const [isAddingAPModal, setIsAddingAPModal] = useState(false);
+  const [isAddingARModal, setIsAddingARModal] = useState(false);
+
+  // Raw helper forms 
+  const [newAPForm, setNewAPForm] = useState({
+    supplierName: '',
+    invoiceNumber: '',
+    invoiceDate: new Date().toISOString().split('T')[0],
+    dueDate: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+    factory: 'MPD',
+    amount: 12000000,
+    paymentTerms: 'NET 30',
+    notes: ''
+  });
+
+  const [newARForm, setNewARForm] = useState({
+    customerName: '',
+    customerType: 'Wholesaler',
+    invoiceNumber: '',
+    invoiceDate: new Date().toISOString().split('T')[0],
+    dueDate: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+    factory: 'MPD',
+    amount: 15000000,
+    paymentTerms: 'NET 30',
+    notes: ''
+  });
+
+  // Action fields
+  const [apScheduleDate, setApScheduleDate] = useState(new Date().toISOString().split('T')[0]);
+  const [apSchedulePriority, setApSchedulePriority] = useState('High');
+  const [apScheduleBank, setApScheduleBank] = useState('bank-bca-op');
+  const [apScheduleBankCustom, setApScheduleBankCustom] = useState('');
+
+  const [apPaymentMethod, setApPaymentMethod] = useState('Transfer Link');
+  const [apPaymentBank, setApPaymentBank] = useState('bank-bca-op');
+  const [apPaymentBankCustom, setApPaymentBankCustom] = useState('');
+  const [apPaymentReference, setApPaymentReference] = useState('');
+  const [apPaymentAmount, setApPaymentAmount] = useState(0);
+  const [apPaymentNotes, setApPaymentNotes] = useState('');
+
+  const [arDeliveryDate, setArDeliveryDate] = useState(new Date().toISOString().split('T')[0]);
+  const [arReceiverName, setArReceiverName] = useState('');
+  const [arSignatureSim, setArSignatureSim] = useState('');
+  const [arGPSLocationSim, setArGPSLocationSim] = useState('-7.9784, 112.5612');
+
+  const [arCollectionType, setArCollectionType] = useState('WhatsApp Reminder');
+  const [arCollectionContact, setArCollectionContact] = useState('');
+  const [arCollectionNotes, setArCollectionNotes] = useState('');
+
+  const [arPaymentMethod, setArPaymentMethod] = useState('Transfer-In Link');
+  const [arPaymentBank, setArPaymentBank] = useState('bank-bca-op');
+  const [arPaymentReference, setArPaymentReference] = useState('');
+  const [arPaymentAmount, setArPaymentAmount] = useState(0);
+  const [arPaymentNotes, setArPaymentNotes] = useState('');
+
+
+  // --- DYNAMIC workflow helpers ---
+
+  const handleCreateAPManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newAPForm.supplierName || !newAPForm.invoiceNumber) return;
+    
+    const baseAmt = Number(newAPForm.amount);
+    const taxVal = Math.round(baseAmt * 0.11);
+    const totalV = baseAmt + taxVal;
+
+    const freshAP = {
+      id: `INV-AP-${Math.floor(Math.random() * 900 + 100)}`,
+      apNumber: `AP-${newAPForm.factory}-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`,
+      supplierName: newAPForm.supplierName,
+      factory: newAPForm.factory,
+      invoiceNumber: newAPForm.invoiceNumber,
+      invoiceDate: newAPForm.invoiceDate,
+      dueDate: newAPForm.dueDate,
+      currency: 'IDR',
+      amount: baseAmt,
+      tax: taxVal,
+      totalAmount: totalV,
+      paymentTerms: newAPForm.paymentTerms,
+      notes: newAPForm.notes,
+      status: 'Draft',
+      attachments: [
+        { name: 'Uploaded_Supplier_Invoice.pdf', type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'Draft Created', date: new Date().toISOString().split('T')[0], user: activeUserRole }
+      ],
+      chkInvoice: false,
+      chkQty: false,
+      chkPO: false,
+      chkPrice: false,
+      chkTax: false,
+      chkDocs: false,
+      verificationRoles: {},
+      approvalNodes: { factoryManager: 'Pending', financeHQ: 'Pending', director: 'Pending' },
+      payments: [],
+      scheduledInfo: null,
+      outstandingAmount: totalV
+    };
+
+    setApList(prev => [freshAP, ...prev]);
+    setIsAddingAPModal(false);
+    // Reset form
+    setNewAPForm({
+      supplierName: '',
+      invoiceNumber: '',
+      invoiceDate: new Date().toISOString().split('T')[0],
+      dueDate: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+      factory: 'MPD',
+      amount: 12000000,
+      paymentTerms: 'NET 30',
+      notes: ''
+    });
+  };
+
+  const handleCreateARManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newARForm.customerName || !newARForm.invoiceNumber) return;
+
+    const baseAmt = Number(newARForm.amount);
+    const taxVal = Math.round(baseAmt * 0.11);
+    const totalV = baseAmt + taxVal;
+
+    const freshAR = {
+      id: `INV-AR-${Math.floor(Math.random() * 900 + 100)}`,
+      arNumber: `AR-${newARForm.factory}-${new Date().getFullYear()}-${Math.floor(Math.random() * 9000 + 1000)}`,
+      customerName: newARForm.customerName,
+      customerType: newARForm.customerType,
+      factory: newARForm.factory,
+      invoiceNumber: newARForm.invoiceNumber,
+      invoiceDate: newARForm.invoiceDate,
+      dueDate: newARForm.dueDate,
+      amount: baseAmt,
+      tax: taxVal,
+      totalInvoice: totalV,
+      paymentTerms: newARForm.paymentTerms,
+      notes: newARForm.notes,
+      status: 'Draft',
+      attachments: [
+        { name: 'Product_Tax_Invoice.pdf', type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'Draft Created', date: new Date().toISOString().split('T')[0], user: activeUserRole }
+      ],
+      deliveryInfo: null,
+      collections: [],
+      payments: [],
+      outstandingAmount: totalV
+    };
+
+    setArList(prev => [freshAR, ...prev]);
+    setIsAddingARModal(false);
+    // Reset
+    setNewARForm({
+      customerName: '',
+      customerType: 'Wholesaler',
+      invoiceNumber: '',
+      invoiceDate: new Date().toISOString().split('T')[0],
+      dueDate: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
+      factory: 'MPD',
+      amount: 15000000,
+      paymentTerms: 'NET 30',
+      notes: ''
+    });
+  };
+
+  const handleImportAPFromReceiving = (rcv: any) => {
+    const rawRcv = rcv || {};
+    const baseAmt = rawRcv.totalHarga || 15000000;
+    const taxVal = Math.round(baseAmt * 0.11);
+    const totalV = baseAmt + taxVal;
+    
+    const supplierName = suppliers.find((s: any) => s.id === rawRcv.supplierId)?.nama || rawRcv.supplierId || 'Supplier Tani';
+    const invoiceD = rawRcv.tanggal;
+    const dueD = new Date(new Date(invoiceD).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const importedAP = {
+      id: `INV-AP-AUTO-${rawRcv.id || Math.floor(Math.random() * 1000)}`,
+      apNumber: `AP-${rawRcv.lokasiId || 'HQ'}-${new Date().getFullYear()}-REV-${rawRcv.id}`,
+      supplierName,
+      factory: rawRcv.lokasiId || 'MPD',
+      invoiceNumber: `INV/AUTO/${rawRcv.tanggal.replace(/-/g, '')}/RCV-${rawRcv.id}`,
+      invoiceDate: invoiceD,
+      dueDate: dueD,
+      currency: 'IDR',
+      amount: baseAmt,
+      tax: taxVal,
+      totalAmount: totalV,
+      paymentTerms: 'NET 30',
+      notes: `Imported automatically from Receiving Slip Log (ID: ${rawRcv.id}). Ready for formal auditing verification.`,
+      status: 'Submitted',
+      attachments: [
+        { name: `Receiving_Slip_Log_${rawRcv.id}.pdf`, type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'Auto-Imported from Receiving Goods Log', date: new Date().toISOString().split('T')[0], user: 'system' }
+      ],
+      chkInvoice: false,
+      chkQty: false,
+      chkPO: false,
+      chkPrice: false,
+      chkTax: false,
+      chkDocs: false,
+      verificationRoles: {},
+      approvalNodes: { factoryManager: 'Pending', financeHQ: 'Pending', director: 'Pending' },
+      payments: [],
+      scheduledInfo: null,
+      outstandingAmount: totalV
+    };
+
+    setApList(prev => [importedAP, ...prev]);
+  };
+
+  const handleImportARFromSales = (sale: any) => {
+    const rawSales = sale || {};
+    const baseAmt = rawSales.totalInvoice || rawSales.totalPenjualan || 12000000;
+    const taxVal = Math.round(baseAmt * 0.11);
+    const totalV = baseAmt + taxVal;
+    
+    const customerName = customers.find((c: any) => c.id === rawSales.customerId)?.nama || rawSales.customerId || 'Customer Store';
+    const invoiceD = rawSales.tanggal;
+    const dueD = new Date(new Date(invoiceD).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+    const importedAR = {
+      id: `INV-AR-AUTO-${rawSales.id || Math.floor(Math.random() * 1000)}`,
+      arNumber: `AR-${rawSales.lokasiId || 'HQ'}-${new Date().getFullYear()}-SO-${rawSales.id}`,
+      customerName,
+      customerType: 'Wholesaler',
+      factory: rawSales.lokasiId || 'JKT',
+      invoiceNumber: rawSales.notaNumber || `INV/SALES/AUTO/${rawSales.id}`,
+      invoiceDate: invoiceD,
+      dueDate: dueD,
+      amount: baseAmt,
+      tax: taxVal,
+      totalInvoice: totalV,
+      paymentTerms: 'NET 30',
+      notes: `Auto compiled from Completed Delivery Sales Order (ID: ${rawSales.id}). Pending digital customer dispatch slip generation.`,
+      status: 'Draft',
+      attachments: [
+        { name: `Sales_Completed_Order_${rawSales.id}.pdf`, type: 'application/pdf' }
+      ],
+      history: [
+        { action: 'AutoCompiled from Shipping Sales Order', date: new Date().toISOString().split('T')[0], user: 'system' }
+      ],
+      deliveryInfo: null,
+      collections: [],
+      payments: [],
+      outstandingAmount: totalV
+    };
+
+    setArList(prev => [importedAR, ...prev]);
+  };
+
+  const handleUpdateAPStatus = (apId: string, nextStatus: string, payload?: any) => {
+    setApList(prev => prev.map(ap => {
+      if (ap.id !== apId) return ap;
+      const updatedHistory = [
+        ...ap.history,
+        { action: `${nextStatus} transition completed.`, date: new Date().toISOString().split('T')[0], user: activeUserRole }
+      ];
+      
+      let apUpdates: any = { status: nextStatus, history: updatedHistory };
+      if (nextStatus === 'Submitted') {
+        apUpdates = {
+          ...apUpdates,
+          status: 'Submitted'
+        };
+      } else if (nextStatus === 'Verified') {
+        apUpdates = {
+          ...apUpdates,
+          chkInvoice: true, chkQty: true, chkPO: true, chkPrice: true, chkTax: true, chkDocs: true,
+          verificationRoles: { verifiedBy: activeUserRole, verifiedDate: new Date().toISOString().split('T')[0] }
+        };
+      } else if (nextStatus === 'Approved') {
+        const fmSign = payload?.fm === 'Approved' ? 'Approved' : ap.approvalNodes.factoryManager;
+        const hqSign = payload?.hq === 'Approved' ? 'Approved' : ap.approvalNodes.financeHQ;
+        const dirSign = payload?.dir === 'Approved' ? 'Approved' : ap.approvalNodes.director;
+
+        const updatedNodes = {
+          factoryManager: fmSign,
+          financeHQ: hqSign,
+          director: dirSign
+        };
+
+        // Determine limit-based completeness
+        const limitAmt = ap.totalAmount;
+        let fullyApproved = false;
+        if (limitAmt > 25000000) {
+          fullyApproved = (fmSign === 'Approved' && hqSign === 'Approved' && dirSign === 'Approved');
+        } else if (limitAmt > 5000000) {
+          fullyApproved = (fmSign === 'Approved' && hqSign === 'Approved');
+        } else {
+          fullyApproved = (fmSign === 'Approved');
+        }
+
+        apUpdates = {
+          ...apUpdates,
+          approvalNodes: updatedNodes,
+          status: fullyApproved ? 'Approved' : ap.status
+        };
+      } else if (nextStatus === 'Scheduled For Payment') {
+        apUpdates = {
+          ...apUpdates,
+          scheduledInfo: {
+            date: payload?.date || new Date().toISOString().split('T')[0],
+            priority: payload?.priority || 'High',
+            bank: payload?.bank || 'bank-bca-op'
+          }
+        };
+      } else if (nextStatus === 'Paid') {
+        const amtPaid = Number(payload?.amount || 0);
+        const freshPayments = [
+          ...ap.payments,
+          {
+            paymentId: `PMT-${Math.floor(Math.random() * 9000 + 1000)}`,
+            date: payload?.date || new Date().toISOString().split('T')[0],
+            method: payload?.method || 'Transfer Link',
+            bankAccount: payload?.bankAccount || 'bank-bca-op',
+            reference: payload?.reference || '',
+            amount: amtPaid,
+            notes: payload?.notes || ''
+          }
+        ];
+        
+        const rem = Math.max(0, ap.outstandingAmount - amtPaid);
+        const nextSt = rem <= 1000 ? 'Closed' : 'Partially Paid';
+        
+        apUpdates = {
+          ...apUpdates,
+          payments: freshPayments,
+          outstandingAmount: rem,
+          status: nextSt
+        };
+
+        // Update Treasury cashier bank accounts balance synchronously
+        setBankAccounts(banks => banks.map(b => {
+          if (b.id === payload?.bankAccount) {
+            return {
+              ...b,
+              currentBalance: b.currentBalance - amtPaid
+            };
+          }
+          return b;
+        }));
+
+        // Log double ledger cash transfer post log automatically
+        const freshTx = {
+          id: `TX-B-AP-${Math.floor(Math.random() * 9000 + 1000)}`,
+          tanggal: payload?.date || new Date().toISOString().split('T')[0],
+          refNumber: payload?.reference || `REF/TRF/AP-${ap.id}`,
+          accountId: payload?.bankAccount || 'bank-bca-op',
+          tipe: 'Transfer Out',
+          amount: amtPaid,
+          deskripsi: `Payment for AP invoice ${ap.invoiceNumber} (${ap.supplierName})`,
+          attachment: 'Transfer_Proof.png',
+          status: 'Approved'
+        };
+        setBankTransactions(txs => [freshTx, ...txs]);
+      }
+
+      const res = { ...ap, ...apUpdates };
+      if (selectedAP?.id === apId) {
+        setSelectedAP(res);
+      }
+      return res;
+    }));
+  };
+
+  const handleUpdateARStatus = (arId: string, nextStatus: string, payload?: any) => {
+    setArList(prev => prev.map(ar => {
+      if (ar.id !== arId) return ar;
+      const updatedHistory = [
+        ...ar.history,
+        { action: `${nextStatus} transition completed.`, date: new Date().toISOString().split('T')[0], user: activeUserRole }
+      ];
+
+      let arUpdates: any = { status: nextStatus, history: updatedHistory };
+      if (nextStatus === 'Issued') {
+        arUpdates = {
+          ...arUpdates,
+          status: 'Issued'
+        };
+      } else if (nextStatus === 'Delivered') {
+        arUpdates = {
+          ...arUpdates,
+          deliveryInfo: {
+            deliveryDate: payload?.deliveryDate || new Date().toISOString().split('T')[0],
+            receiverName: payload?.receiverName || 'Agridea Logistics Staff',
+            signature: payload?.signature || 'LGS-SIGN-AUTO',
+            photo: payload?.photo || 'cargo_proof_sim.png',
+            gpsLocation: payload?.gpsLocation || '-7.9813, 112.6318'
+          }
+        };
+      } else if (nextStatus === 'Confirmed') {
+        arUpdates = {
+          ...arUpdates,
+          status: 'Confirmed'
+        };
+      } else if (nextStatus === 'Collection') {
+        const newCollectionLog = {
+          date: new Date().toISOString().split('T')[0],
+          type: payload?.type || 'Standard Collections Call',
+          note: payload?.note || 'Standard AR collection cycle has been activated.',
+          contactPerson: payload?.contactPerson || 'Customer Finance Officer'
+        };
+        arUpdates = {
+          ...arUpdates,
+          collections: [...(ar.collections || []), newCollectionLog],
+          status: 'Collection'
+        };
+      } else if (nextStatus === 'Paid') {
+        const amtCollected = Number(payload?.amount || 0);
+        const freshPayments = [
+          ...(ar.payments || []),
+          {
+            collectionId: `COL-${Math.floor(Math.random() * 9000 + 1000)}`,
+            date: payload?.date || new Date().toISOString().split('T')[0],
+            method: payload?.method || 'Incoming Transfer',
+            bankAccount: payload?.bankAccount || 'bank-bca-op',
+            reference: payload?.reference || '',
+            amount: amtCollected,
+            notes: payload?.notes || ''
+          }
+        ];
+
+        const rem = Math.max(0, ar.outstandingAmount - amtCollected);
+        const nextSt = rem <= 1000 ? 'Closed' : 'Partially Paid';
+
+        arUpdates = {
+          ...arUpdates,
+          payments: freshPayments,
+          outstandingAmount: rem,
+          status: nextSt
+        };
+
+        // Increase Treasury cashier bank accounts balance synchronously
+        setBankAccounts(banks => banks.map(b => {
+          if (b.id === payload?.bankAccount) {
+            return {
+              ...b,
+              currentBalance: b.currentBalance + amtCollected
+            };
+          }
+          return b;
+        }));
+
+        // Log double ledger cash transfer post log automatically
+        const freshTx = {
+          id: `TX-B-AR-${Math.floor(Math.random() * 9000 + 1000)}`,
+          tanggal: payload?.date || new Date().toISOString().split('T')[0],
+          refNumber: payload?.reference || `REF/TRF/AR-${ar.id}`,
+          accountId: payload?.bankAccount || 'bank-bca-op',
+          tipe: 'Transfer In',
+          amount: amtCollected,
+          deskripsi: `Collection payment from AR ${ar.invoiceNumber} (${ar.customerName})`,
+          attachment: 'Cash_Receipt.png',
+          status: 'Approved'
+        };
+        setBankTransactions(txs => [freshTx, ...txs]);
+      }
+
+      const res = { ...ar, ...arUpdates };
+      if (selectedAR?.id === arId) {
+        setSelectedAR(res);
+      }
+      return res;
+    }));
+  };
+
+
+
   const cashFlowBreakdown = useMemo(() => {
-    // Sales Revenue dynamically compiled from sales
     const rawSales = state.sales || [];
-    const salesCashIn = rawSales.reduce((sum: number, s: any) => sum + (s.totalInvoice || s.totalPenjualan || 0), 0);
+    const salesCashIn = rawSales.reduce((sum: number, s: any) => sum + (s.totalHarga || 0), 0);
 
     // Dynamic Procurement Costs
     const rawRcv = state.penerimaan || [];
@@ -823,18 +1444,46 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
         {/* 2. ACCOUNTS PAYABLE (Supplier Debt) */}
         {activeTab === 'ap_list' && (
           <div className="space-y-6 animate-fade-in" id="sub-accounts-payable-management">
-            {/* Stats section */}
+            
+            {/* Simulation Header & Navigation Panel */}
+            <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="bg-rose-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">Simulation &amp; Authorization Role</span>
+                <h4 className="text-sm font-bold mt-1.5 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-450 text-emerald-400" /> Active Enterprise Role Portal
+                </h4>
+                <p className="text-[10px] text-slate-450 text-slate-400 mt-0.5">Toggle active authorization to execute multi-stage verifications or signed approval actions.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(['Operations Admin', 'Factory Manager', 'Finance HQ', 'Director'] as const).map(role => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setActiveUserRole(role)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 ${
+                      activeUserRole === role
+                        ? 'bg-rose-600 text-white shadow-md border-b-2 border-rose-800'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-75 * hover:text-white'
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Stats Summary Card Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white border rounded-xl p-5 shadow-sm">
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Outstanding AP Total</span>
                 <span className="text-2xl font-black text-rose-600 mt-1 block">
                   Rp {apAging.totalOutstanding.toLocaleString('id-ID')}
                 </span>
-                <span className="text-[10px] text-slate-500 block mt-2 font-mono">Binds real-time PO &amp; receiving slips.</span>
+                <span className="text-[9px] text-slate-550 block mt-1.5 font-mono">Real-time balances across factories</span>
               </div>
               <div className="bg-white border rounded-xl p-5 shadow-sm">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">0 - 30 Days Out</span>
-                <span className="text-lg font-black text-slate-900 mt-1 block">
+                <span className="text-[10px] text-slate-405 font-bold uppercase tracking-wider block">0 - 30 Days Out</span>
+                <span className="text-lg font-black text-emerald-600 mt-1 block">
                   Rp {apAging.days_0_30.toLocaleString('id-ID')}
                 </span>
                 <div className="w-full bg-slate-100 rounded-full h-1 mt-3">
@@ -861,190 +1510,757 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
               </div>
             </div>
 
-            {/* List & Details of Generated AP Invoices */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="p-5 border-b bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
-                    <FileSpreadsheet className="w-4 h-4 text-rose-500" /> Active AP Invoices &amp; Liability List
-                  </h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Linked dynamically on purchase order items reception logs.</p>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b bg-slate-100 text-slate-500 font-bold">
-                      <th className="py-2.5 px-4">Invoice ID</th>
-                      <th className="py-2.5 px-4 font-mono">Invoice Number</th>
-                      <th className="py-2.5 px-4">Supplier</th>
-                      <th className="py-2.5 px-4">Invoice date</th>
-                      <th className="py-2.5 px-4 font-semibold text-rose-700">Due Date</th>
-                      <th className="py-2.5 px-4 text-right">Amount</th>
-                      <th className="py-2.5 px-4 text-right font-mono">Tax (PPN 11%)</th>
-                      <th className="py-2.5 px-4">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {apInvoices.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-slate-50">
-                        <td className="py-3.5 px-4 font-bold text-slate-900">{inv.id}</td>
-                        <td className="py-3.5 px-4 font-mono text-slate-500">{inv.invoiceNumber}</td>
-                        <td className="py-3.5 px-4 font-bold text-slate-800">{inv.supplierName}</td>
-                        <td className="py-3.5 px-4">{inv.invoiceDate}</td>
-                        <td className="py-3.5 px-4 text-rose-600 font-extrabold">{inv.dueDate}</td>
-                        <td className="py-3.5 px-4 text-right font-bold text-slate-900">Rp {inv.amount.toLocaleString('id-ID')}</td>
-                        <td className="py-3.5 px-4 text-right font-mono text-slate-400">Rp {inv.tax.toLocaleString('id-ID')}</td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                            inv.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
-                            inv.status === 'Overdue' ? 'bg-rose-100 text-rose-800 animate-pulse' :
-                            inv.status === 'Partially Paid' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                          }`}>{inv.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Schedule Plan table & Supplier dashboards */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Payment scheduling dashboard */}
-              <div className="bg-white border rounded-2xl p-5 shadow-sm flex flex-col justify-between">
-                <div>
-                  <div className="flex justify-between items-center border-b pb-3 mb-4">
-                    <span className="font-extrabold uppercase text-xs tracking-wider text-slate-800">Operational Payment Scheduler</span>
-                    <button
-                      onClick={() => setIsAddingPlan(true)}
-                      className="bg-slate-900 text-white font-semibold text-[10px] px-2.5 py-1 rounded hover:bg-slate-800 transition"
-                    >
-                      Create Payment Schedule
-                    </button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {apPaymentPlan.map((p) => {
-                      const bankName = bankAccounts.find(x => x.id === p.bankAccountId)?.name || p.bankAccountId;
-                      return (
-                        <div key={p.id} className="border rounded-xl p-3 bg-slate-50 hover:shadow-sm transition flex justify-between items-start">
-                          <div>
-                            <span className="font-extrabold text-xs text-slate-900 block">{p.supplier}</span>
-                            <span className="text-[10px] text-slate-400 block mt-0.5">Source: {bankName} | Expected: {p.scheduledDate}</span>
-                            <span className="text-[10px] text-slate-500 font-medium block">Approved: {p.approvedBy}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className="font-black text-rose-700 text-xs block">Rp {p.amount.toLocaleString('id-ID')}</span>
-                            <span className={`px-1.5 py-0.5 rounded text-[8px] font-bold inline-block mt-1 ${
-                              p.status === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
-                            }`}>{p.status}</span>
-                          </div>
-                        </div>
-                      );
-                    })}
+            {/* Unbilled Procurement Intake Feed */}
+            {state.penerimaan && state.penerimaan.length > 0 && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex gap-3">
+                  <TrendingUp className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-xs font-extrabold text-amber-900 block">Available Unbilled Goods Receiving Records</span>
+                    <p className="text-[10px] text-amber-700 mt-0.5">The following unbilled receiving slips can be imported directly into Accounts Payable database to avoid bookkeeping gaps.</p>
                   </div>
                 </div>
+                <div className="flex flex-wrap gap-2">
+                  {state.penerimaan.filter((rcv: any) => !apList.some(ap => ap.id.includes(rcv.id))).map((rcv: any) => {
+                    const supName = suppliers.find((s: any) => s.id === rcv.supplierId)?.nama || rcv.supplierId;
+                    return (
+                      <button
+                        key={rcv.id}
+                        type="button"
+                        onClick={() => {
+                          handleImportAPFromReceiving(rcv);
+                          alert(`Successfully imported Receiving record #${rcv.id} from supplier ${supName} into Accounts Payable as 'Submitted'!`);
+                        }}
+                        className="bg-white border hover:bg-slate-50 text-slate-800 text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition whitespace-nowrap shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                        Import RCV#{rcv.id} - Rp {rcv.totalHarga?.toLocaleString('id-ID')} ({rcv.lokasiId})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-                {isAddingPlan && (
-                  <form onSubmit={handleCreatePlanSubmit} className="border border-slate-200 rounded-xl p-4 bg-amber-50/50 mt-4 space-y-3 animate-fade-in">
-                    <span className="text-[10px] uppercase font-bold text-amber-800 block">Propose New Outstanding Payment Plan</span>
-                    <div className="grid grid-cols-2 gap-2">
+            {/* Main Interactive Work Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Ledger Table Column */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                  
+                  {/* Table Header with Filters */}
+                  <div className="p-5 border-b bg-slate-50/50 space-y-3">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
-                        <label className="text-[8px] uppercase font-bold text-slate-500 block">Supplier Name</label>
+                        <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                          <FileSpreadsheet className="w-4 h-4 text-rose-500" /> Accounts Payable Liability Registry
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Manage liabilities, multi-node approvals, and dispatcher payment workflows.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingAPModal(true)}
+                        className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-2 shadow transition"
+                      >
+                        <Plus className="w-4 h-4" /> Create Manual AP
+                      </button>
+                    </div>
+
+                    {/* Filter Elements */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
                         <input
                           type="text"
-                          required
-                          value={newPlan.supplier}
-                          onChange={(e) => setNewPlan(prev => ({ ...prev, supplier: e.target.value }))}
-                          placeholder="e.g. Sinar Tani"
-                          className="w-full bg-white border rounded p-1.5 text-xs text-slate-800 font-medium"
+                          value={apSearchText}
+                          onChange={(e) => setApSearchText(e.target.value)}
+                          placeholder="Search Supplier or Invoice..."
+                          className="w-full pl-8 bg-white border border-slate-200 text-xs text-slate-800 p-2 rounded-lg"
                         />
                       </div>
-                      <div>
-                        <label className="text-[8px] uppercase font-bold text-slate-500 block">Amount Plan (Rp)</label>
-                        <input
-                          type="number"
-                          required
-                          value={newPlan.amount}
-                          onChange={(e) => setNewPlan(prev => ({ ...prev, amount: Number(e.target.value) }))}
-                          className="w-full bg-white border rounded p-1.5 text-xs text-slate-800 font-bold"
-                        />
-                      </div>
+                      <select
+                        value={apSelectedFactory}
+                        onChange={(e) => setApSelectedFactory(e.target.value)}
+                        className="bg-white border border-slate-200 text-xs p-2 rounded-lg"
+                      >
+                        <option value="ALL">All Factories (CONSOLIDATED)</option>
+                        <option value="MPD">Madiun Premium Drink (MPD)</option>
+                        <option value="SSP">Sipahutar Soda Premium (SSP)</option>
+                        <option value="AGDN">Agrowisata Drink Nusantara (AGDN)</option>
+                        <option value="JKT">Jakarta HQ Facility</option>
+                      </select>
+                      <select
+                        value={apSelectedStatus}
+                        onChange={(e) => setApSelectedStatus(e.target.value)}
+                        className="bg-white border border-slate-200 text-xs p-2 rounded-lg"
+                      >
+                        <option value="ALL">All Statuses</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Submitted">Submitted (Pending Audit)</option>
+                        <option value="Verified">Verified (Awaiting Sign)</option>
+                        <option value="Approved">Approved (Aready for Scheduled)</option>
+                        <option value="Scheduled For Payment">Scheduled</option>
+                        <option value="Partially Paid">Partially Paid</option>
+                        <option value="Closed">Closed / Paid</option>
+                      </select>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="text-[8px] uppercase font-bold text-slate-500 block">Target Bank Account</label>
-                        <select
-                          value={newPlan.bankAccountId}
-                          onChange={(e) => setNewPlan(prev => ({ ...prev, bankAccountId: e.target.value }))}
-                          className="w-full bg-white border border-slate-200 rounded p-1 text-xs"
-                        >
-                          {bankAccounts.map(b => (
-                            <option key={b.id} value={b.id}>{b.name}</option>
-                          ))}
-                        </select>
-                      </div>
-                      <div>
-                        <label className="text-[8px] uppercase font-bold text-slate-500 block">Scheduled Date</label>
-                        <input
-                          type="date"
-                          value={newPlan.scheduledDate}
-                          onChange={(e) => setNewPlan(prev => ({ ...prev, scheduledDate: e.target.value }))}
-                          className="w-full bg-white border rounded p-1 text-xs"
-                        />
-                      </div>
-                    </div>
-                    <div className="flex justify-end gap-1.5 pt-1.5">
-                      <button type="button" onClick={() => setIsAddingPlan(false)} className="px-2 py-1 bg-slate-300 text-slate-700 font-bold rounded text-[10px]">Cancel</button>
-                      <button type="submit" className="px-2.5 py-1 bg-slate-900 text-white font-bold rounded text-[10px]">Propose Schedule</button>
-                    </div>
-                  </form>
-                )}
-              </div>
+                  </div>
 
-              {/* Top suppliers scorecard */}
-              <div className="bg-white border rounded-2xl p-5 shadow-sm flex flex-col justify-between">
-                <div>
-                  <span className="font-extrabold uppercase text-xs tracking-wider text-slate-800 block border-b pb-3 mb-4">Supplier Performance &amp; Outstanding Debt List</span>
-                  <div className="space-y-3">
-                    {supplierStats.slice(0, 4).map((s, idx) => (
-                      <div key={idx} className="flex justify-between items-center text-xs">
-                        <div className="max-w-[60%]">
-                          <span className="font-bold text-slate-850 block truncate">{s.name}</span>
-                          <span className="text-[9px] text-slate-400 font-medium">Accumulated Purchases: Rp {s.purchases.toLocaleString('id-ID')}</span>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-rose-600 font-extrabold block">Outstanding Balance</span>
-                          <span className="font-black text-slate-900">Rp {s.outstanding.toLocaleString('id-ID')}</span>
-                        </div>
-                      </div>
-                    ))}
+                  {/* Liability Grid Rows */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b bg-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                          <th className="py-3 px-4">Invoice ID / AP Num</th>
+                          <th className="py-3 px-4">Supplier &amp; Unit</th>
+                          <th className="py-3 px-4">Invoice Date</th>
+                          <th className="py-3 px-4 text-rose-700">Due Date</th>
+                          <th className="py-3 px-4 text-right">Outstanding / Total Amount</th>
+                          <th className="py-3 px-4 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                        {apInvoices
+                          .filter(ap => {
+                            const nameMatch = ap.supplierName.toLowerCase().includes(apSearchText.toLowerCase()) || ap.invoiceNumber.toLowerCase().includes(apSearchText.toLowerCase());
+                            const factoryMatch = apSelectedFactory === 'ALL' || ap.factory === apSelectedFactory;
+                            const statusMatch = apSelectedStatus === 'ALL' || ap.status === apSelectedStatus;
+                            return nameMatch && factoryMatch && statusMatch;
+                          })
+                          .map((ap) => (
+                            <tr
+                              key={ap.id}
+                              onClick={() => setSelectedAP(ap)}
+                              className={`hover:bg-slate-50/80 cursor-pointer transition-colors duration-100 ${
+                                selectedAP?.id === ap.id ? 'bg-rose-50/60 font-semibold border-l-4 border-rose-500' : ''
+                              }`}
+                            >
+                              <td className="py-3 px-4 text-slate-900">
+                                <span className="font-extrabold block">{ap.id}</span>
+                                <span className="text-[10px] text-slate-400 font-mono block">{ap.apNumber || 'AP-DRAFT'}</span>
+                              </td>
+                              <td className="py-3 px-4 text-slate-800">
+                                <span className="font-bold text-slate-900 block">{ap.supplierName}</span>
+                                <span className="text-[9px] bg-indigo-50 border border-indigo-200 text-indigo-750 font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded inline-block mt-0.5">
+                                  {ap.factory} Factory
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-slate-500">{ap.invoiceDate}</td>
+                              <td className="py-3 px-4 text-rose-600 font-bold">{ap.dueDate}</td>
+                              <td className="py-3 px-4 text-right">
+                                <span className="text-slate-900 font-black block">Rp {ap.outstandingAmount?.toLocaleString('id-ID')}</span>
+                                <span className="text-[9px] text-slate-400 font-medium block">Total invoiced: Rp {ap.totalAmount?.toLocaleString('id-ID')}</span>
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest ${
+                                  ap.status === 'Closed' || ap.status === 'Paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-350' :
+                                  ap.status === 'Overdue' ? 'bg-rose-100 text-rose-800 animate-pulse border border-rose-350' :
+                                  ap.status === 'Approved' ? 'bg-teal-100 text-teal-800 border border-teal-300' :
+                                  ap.status === 'Partially Paid' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                                  ap.status === 'Draft' ? 'bg-slate-100 text-slate-600 border' : 'bg-blue-100 text-blue-800 border border-blue-300 animate-pulse'
+                                }`}>
+                                  {ap.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-                <div className="border-t border-slate-100 pt-3 mt-4 text-[10px] text-slate-400">
-                  Data sourced from automatic integration with Raw material PO &amp; receiving slips.
+
+                {/* Auxiliary scheduler panel */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white border rounded-2xl p-5 shadow-sm">
+                    <span className="font-extrabold uppercase text-xs tracking-wider text-slate-900 block border-b pb-3 mb-4 flex items-center gap-2">
+                       <Clock className="w-4 h-4 text-indigo-600 animate-spin-slow" /> Scheduled Payment Queues
+                    </span>
+                    <div className="space-y-3">
+                      {apPaymentPlan.length === 0 ? (
+                        <div className="text-center py-6 text-slate-400 text-[11px] font-medium">
+                          No active payment executions scheduled currently.
+                        </div>
+                      ) : (
+                        apPaymentPlan.map((p) => {
+                          const bankName = bankAccounts.find(x => x.id === p.bankAccountId)?.name || p.bankAccountId;
+                          return (
+                            <div key={p.id} className="border rounded-xl p-3 bg-slate-50/60 flex justify-between items-start">
+                              <div>
+                                <span className="font-bold text-xs text-slate-900 block">{p.supplier}</span>
+                                <span className="text-[10px] text-slate-400 block mt-0.5 mt-1 font-mono">Source: {bankName}</span>
+                                <span className="text-[10px] text-slate-600 block mt-0.5">Execution date: <span className="font-bold text-indigo-600">{p.scheduledDate}</span></span>
+                              </div>
+                              <div className="text-right">
+                                <span className="font-black text-rose-700 text-xs block">Rp {p.amount.toLocaleString('id-ID')}</span>
+                                <span className="bg-rose-50 text-rose-700 text-[8px] font-black uppercase px-2 py-0.5 rounded block mt-1 inline-block">
+                                  {p.priority} Priority
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-white border rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+                    <div>
+                      <span className="font-extrabold uppercase text-xs tracking-wider text-slate-900 block border-b pb-3 mb-4">
+                        Supplier Outstanding Risk Indexes
+                      </span>
+                      <div className="space-y-3">
+                        {supplierStats.slice(0, 3).map((sub, key) => (
+                          <div key={key} className="space-y-1">
+                            <div className="flex justify-between text-xs font-bold text-slate-800">
+                              <span className="truncate max-w-[70%]">{sub.name}</span>
+                              <span className="text-slate-900">Rp {sub.outstanding.toLocaleString('id-ID')}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-1.5">
+                              <div
+                                className="bg-rose-500 h-1.5 rounded-full"
+                                style={{ width: `${Math.min(100, (sub.outstanding / Math.max(1, apAging.totalOutstanding)) * 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="border-t pt-3 mt-3 text-[10px] text-slate-400 flex items-center gap-1.5">
+                      <Info className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                      Dynamic consolidation compiled across multi-state supplier logs.
+                    </div>
+                  </div>
                 </div>
+
               </div>
+
+              {/* Workflow Details Sidebar Drawer */}
+              <div className="lg:col-span-1 space-y-4">
+                
+                {selectedAP ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden animate-slide-in">
+                    
+                    {/* Drawer Header */}
+                    <div className="bg-slate-950 text-white p-5">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="bg-rose-600 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
+                            Accounts Payable Unit
+                          </span>
+                          <h4 className="text-sm font-black mt-2 font-mono">{selectedAP.id}</h4>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">Supplier: <strong>{selectedAP.supplierName}</strong></span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAP(null)}
+                          className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg transition"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Timeline status indicator */}
+                      <div className="mt-5 grid grid-cols-7 text-[8px] font-black uppercase text-center text-slate-500 gap-1 select-none">
+                        {(['Draft', 'Submitted', 'Verified', 'Approved', 'Scheduled', 'Paid', 'Closed'] as const).map((step, idx) => {
+                          const isActive = selectedAP.status === step || (step === 'Scheduled' && selectedAP.status === 'Scheduled For Payment') || (step === 'Paid' && selectedAP.status === 'Partially Paid');
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className={`h-1 rounded-full ${isActive ? 'bg-rose-500' : 'bg-slate-800'}`}></div>
+                              <span className={isActive ? 'text-rose-550 text-rose-400 font-extrabold' : ''}>{step}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Drawer Content */}
+                    <div className="p-5 space-y-5 text-xs text-slate-700 font-medium">
+                      
+                      {/* Technical Fields list */}
+                      <div className="bg-slate-50 border rounded-xl p-3.5 space-y-2">
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Invoice Number</span>
+                          <span className="font-mono text-slate-800 text-right font-extrabold">{selectedAP.invoiceNumber}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Payment Terms</span>
+                          <span className="text-slate-800 text-right font-bold">{selectedAP.paymentTerms}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Invoice Sum Date</span>
+                          <span className="text-slate-800 text-right">{selectedAP.invoiceDate}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Maturity Date</span>
+                          <span className="text-rose-600 font-extrabold text-right">{selectedAP.dueDate}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">Tax Value (PPN 11%)</span>
+                          <span className="text-right font-mono text-slate-500">Rp {(selectedAP.tax || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div className="grid grid-cols-2 pt-1.5 border-t border-slate-200">
+                          <span className="text-xs uppercase font-extrabold text-slate-900">Total Liability</span>
+                          <span className="text-right text-slate-950 text-sm font-black">Rp {(selectedAP.totalAmount || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-500">Outstanding Debt</span>
+                          <span className="text-right text-rose-600 font-black">Rp {(selectedAP.outstandingAmount || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        {selectedAP.notes && (
+                          <div className="pt-2 border-t mt-1.5 text-[10px] text-slate-500">
+                            <strong>Audit Notes:</strong> {selectedAP.notes}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* File Attachments Registry */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Verified Document Attachments</span>
+                        {(!selectedAP.attachments || selectedAP.attachments.length === 0) ? (
+                          <div className="text-center bg-slate-50 border p-3 rounded-lg text-slate-400 text-[10px]">
+                            No document receipts uploaded.
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {(selectedAP.attachments || []).map((file: any, key: number) => (
+                              <div key={key} className="flex items-center justify-between bg-slate-50 border p-2 rounded-lg text-[10px]">
+                                <span className="font-bold text-slate-800 truncate max-w-[70%]">{file.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => alert(`Simulating file download: ${file.name}`)}
+                                  className="text-rose-600 hover:text-rose-700 font-bold"
+                                >
+                                  View / Download
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* DYNAMIC ACTION SUB-PANELS BASED ON CORE AP LIFECYCLE */}
+
+                      {/* STEP 1: Draft - Submit Form */}
+                      {selectedAP.status === 'Draft' && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                          <span className="text-blue-900 font-extrabold block text-xs">Stage 1: Enterprise Intake Submission</span>
+                          <p className="text-[10px] text-blue-700 leading-relaxed">This liability invoice is currently a Draft. Submit to audit queue for verification check-list matching.</p>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateAPStatus(selectedAP.id, 'Submitted')}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-2 rounded-lg inline-flex items-center justify-center gap-2 transition"
+                          >
+                            <CheckSquare className="w-4 h-4" /> Submit to Audit Queue
+                          </button>
+                        </div>
+                      )}
+
+                      {/* STEP 2: Submitted - Document matching checklists & verification */}
+                      {selectedAP.status === 'Submitted' && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3 text-[10px]">
+                          <span className="text-amber-900 font-extrabold block text-xs">Stage 2: AP Verification &amp; Match audit</span>
+                          <p className="text-amber-700 leading-relaxed">Awaiting verification of Quantity, Pricing, Tax compliance and formal purchase orders.</p>
+                          
+                          <div className="space-y-1.5 py-1.5">
+                            <label className="flex items-center gap-2 text-[10px] text-slate-700">
+                              <input type="checkbox" defaultChecked className="rounded text-rose-600" /> Quantity verified matching Receiving Slip
+                            </label>
+                            <label className="flex items-center gap-2 text-[10px] text-slate-700">
+                              <input type="checkbox" defaultChecked className="rounded text-rose-600" /> Purchase Order (PO) terms aligned
+                            </label>
+                            <label className="flex items-center gap-2 text-[10px] text-slate-700">
+                              <input type="checkbox" defaultChecked className="rounded text-rose-600" /> Supplier Invoice math correctness
+                            </label>
+                            <label className="flex items-center gap-2 text-[10px] text-slate-700">
+                              <input type="checkbox" defaultChecked className="rounded text-rose-600" /> PPN 11% Tax Invoice validated
+                            </label>
+                          </div>
+
+                          {activeUserRole === 'Finance HQ' || activeUserRole === 'Director' || activeUserRole === 'Operations Admin' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleUpdateAPStatus(selectedAP.id, 'Verified');
+                              }}
+                              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2 rounded-lg inline-flex items-center justify-center gap-1.5 transition"
+                            >
+                              <CheckSquare className="w-4 h-4" /> Verify &amp; Pass to Approval Routing
+                            </button>
+                          ) : (
+                            <div className="bg-amber-100 text-amber-850 p-2.5 rounded text-center border font-bold">
+                              Need "Finance HQ" authorization role toggled to execute audit signs.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* STEP 3: Verified - Multi-stage Limit Based approval nodes */}
+                      {(selectedAP.status === 'Verified' || selectedAP.status === 'Submitted') && selectedAP.chkQty === true && (
+                        <div className="bg-teal-50 border border-teal-200 rounded-xl p-4 space-y-3">
+                          <span className="text-teal-900 font-extrabold block text-xs">Stage 3: Multi-Stage Limit Sign-off</span>
+                          <p className="text-[10px] text-teal-800 leading-relaxed">Required sign-off targets based on Rp liability amount limit:</p>
+                          
+                          <div className="space-y-2 py-1 select-none text-[10px]">
+                            <div className="flex items-center justify-between border-b pb-1">
+                              <span>Factory Manager (<span className="font-mono text-[9px] text-indigo-600">Rp &lt; 5M</span>)</span>
+                              <span className={`font-bold px-1.5 py-0.5 rounded ${selectedAP.approvalNodes.factoryManager === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800 animate-pulse'}`}>
+                                {selectedAP.approvalNodes.factoryManager}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between border-b pb-1">
+                              <span>Finance HQ (<span className="font-mono text-[9px] text-indigo-600">Rp 5M - 25M</span>)</span>
+                              <span className={`font-bold px-1.5 py-0.5 rounded ${selectedAP.approvalNodes.financeHQ === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>
+                                {selectedAP.approvalNodes.financeHQ}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between pb-1">
+                              <span>HQ Director (<span className="font-mono text-[9px] text-indigo-600">Rp &gt; 25M</span>)</span>
+                              <span className={`font-bold px-1.5 py-0.5 rounded ${selectedAP.approvalNodes.director === 'Approved' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>
+                                {selectedAP.approvalNodes.director}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Simulation Approval Signing Trigger */}
+                          <div className="space-y-1">
+                            {selectedAP.totalAmount > 25000000 && selectedAP.approvalNodes.director !== 'Approved' && activeUserRole === 'Director' && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateAPStatus(selectedAP.id, 'Approved', { fm: 'Approved', hq: 'Approved', dir: 'Approved' })}
+                                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-extrabold py-2 rounded-lg transition"
+                              >
+                                Sign Director Approval (&gt;25M)
+                              </button>
+                            )}
+                            {selectedAP.totalAmount <= 25000000 && selectedAP.totalAmount > 5000000 && selectedAP.approvalNodes.financeHQ !== 'Approved' && activeUserRole === 'Finance HQ' && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateAPStatus(selectedAP.id, 'Approved', { fm: 'Approved', hq: 'Approved' })}
+                                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-extrabold py-2 rounded-lg transition"
+                              >
+                                Sign Finance HQ Approval (&lt;25M)
+                              </button>
+                            )}
+                            {selectedAP.approvalNodes.factoryManager !== 'Approved' && activeUserRole === 'Factory Manager' && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateAPStatus(selectedAP.id, 'Approved', { fm: 'Approved' })}
+                                className="w-full bg-teal-600 hover:bg-teal-700 text-white font-extrabold py-2 rounded-lg transition"
+                              >
+                                Sign Factory Manager Approval
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* STEP 4: Approved - Payment scheduler */}
+                      {selectedAP.status === 'Approved' && (
+                        <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 space-y-3">
+                          <span className="text-indigo-950 font-extrabold block text-xs">Stage 4: Operational Payment Scheduler</span>
+                          
+                          <div className="space-y-2">
+                            <div>
+                              <label className="text-[9px] uppercase font-bold text-slate-500 block">Proposed Pay Date</label>
+                              <input
+                                type="date"
+                                value={apScheduleDate}
+                                onChange={(e) => setApScheduleDate(e.target.value)}
+                                className="w-full bg-white border rounded p-1 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-[9px] uppercase font-bold text-slate-500 block">Priority Level</label>
+                              <select
+                                value={apSchedulePriority}
+                                onChange={(e) => setApSchedulePriority(e.target.value)}
+                                className="w-full bg-white border rounded p-1 text-xs"
+                              >
+                                <option value="Critical">Critical (Immediate Call)</option>
+                                <option value="High">High (Standard Business Cycle)</option>
+                                <option value="Normal">Normal</option>
+                                <option value="Low">Low</option>
+                              </select>
+                            </div>
+                            <div>
+                              <label className="text-[9px] uppercase font-bold text-slate-500 block">Target Bank Account</label>
+                              <select
+                                value={apScheduleBank}
+                                onChange={(e) => setApScheduleBank(e.target.value)}
+                                className="w-full bg-white border p-1 rounded text-xs"
+                              >
+                                {bankAccounts.map(b => (
+                                  <option key={b.id} value={b.id}>{b.name} (Rp {b.currentBalance.toLocaleString('id-ID')})</option>
+                                ))}
+                                <option value="other">Other (Input Custom...)</option>
+                              </select>
+                            </div>
+                            {apScheduleBank === 'other' && (
+                              <div className="mt-1">
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block">Custom Bank Account Name</label>
+                                <input
+                                  type="text"
+                                  value={apScheduleBankCustom}
+                                  onChange={(e) => setApScheduleBankCustom(e.target.value)}
+                                  placeholder="E.g. MANDIRI AGDIN / BNI SSP"
+                                  className="w-full bg-white border rounded p-1 text-xs"
+                                />
+                              </div>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const targetBank = apScheduleBank === 'other' ? (apScheduleBankCustom || 'Custom Bank') : apScheduleBank;
+                              handleUpdateAPStatus(selectedAP.id, 'Scheduled For Payment', { date: apScheduleDate, priority: apSchedulePriority, bank: targetBank });
+                            }}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-2 rounded-lg transition"
+                          >
+                            Schedule For Treasury Payment
+                          </button>
+                        </div>
+                      )}
+
+                      {/* STEP 5: Scheduled For Payment or Partially Paid - Cashier disbursement screen */}
+                      {(selectedAP.status === 'Scheduled For Payment' || selectedAP.status === 'Partially Paid') && (
+                        <div className="bg-rose-50 border border-rose-100 rounded-xl p-4 space-y-3">
+                          <span className="text-rose-950 font-extrabold block text-xs flex items-center gap-1.5">
+                            <Scale className="w-4 h-4 text-rose-600" /> Stage 5: Treasury Cashier Payment Release
+                          </span>
+                          <p className="text-[10px] text-rose-800 leading-relaxed">Dispense funds to supplier bank accounts and register immediate general ledger vouchers.</p>
+
+                           <div className="space-y-2 pt-1">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block">Disbursed From</label>
+                                <select
+                                  value={apPaymentBank}
+                                  onChange={(e) => setApPaymentBank(e.target.value)}
+                                  className="w-full bg-white border rounded p-1 text-xs"
+                                >
+                                  {bankAccounts.map(b => (
+                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                  ))}
+                                  <option value="other">Other (Input Custom...)</option>
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block">Payout Date</label>
+                                <input
+                                  type="date"
+                                  value={apScheduleDate}
+                                  onChange={(e) => setApScheduleDate(e.target.value)}
+                                  className="w-full bg-white border rounded p-1 text-xs"
+                                />
+                              </div>
+                            </div>
+
+                            {apPaymentBank === 'other' && (
+                              <div className="animate-fade-in block">
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block">Custom Disbursed From Name</label>
+                                <input
+                                  type="text"
+                                  value={apPaymentBankCustom}
+                                  onChange={(e) => setApPaymentBankCustom(e.target.value)}
+                                  placeholder="E.g. Bank Harda / Vault Cash"
+                                  className="w-full bg-white border rounded p-1 text-xs"
+                                />
+                              </div>
+                            )}
+
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block">Bank Ref Method</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={apPaymentMethod}
+                                  onChange={(e) => setApPaymentMethod(e.target.value)}
+                                  placeholder="BCA Transfer / VA Link"
+                                  className="w-full bg-white border rounded p-1 text-xs"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block">Transaction Reference ID</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={apPaymentReference}
+                                  onChange={(e) => setApPaymentReference(e.target.value)}
+                                  placeholder="REF-VA-10291"
+                                  className="w-full bg-white border rounded p-1 text-xs"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex justify-between items-center">
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block font-mono">Disbursement Amount Paid (Rp)</label>
+                                <button
+                                  type="button"
+                                  onClick={() => setApPaymentAmount(selectedAP.outstandingAmount)}
+                                  className="text-[9px] text-rose-600 font-extrabold hover:underline"
+                                >
+                                  Pay Full Outstanding
+                                </button>
+                              </div>
+                              <input
+                                type="number"
+                                required
+                                value={apPaymentAmount}
+                                onChange={(e) => setApPaymentAmount(Number(e.target.value))}
+                                className="w-full bg-white border rounded p-1.5 text-xs font-black text-rose-700"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (apPaymentAmount <= 0) {
+                                alert('Provide valid positive decimal currency payout limits!');
+                                return;
+                              }
+                              const chosenBank = apPaymentBank === 'other' ? (apPaymentBankCustom || 'Custom Bank') : apPaymentBank;
+                              handleUpdateAPStatus(selectedAP.id, 'Paid', {
+                                date: apScheduleDate,
+                                method: apPaymentMethod,
+                                bankAccount: chosenBank,
+                                reference: apPaymentReference,
+                                amount: apPaymentAmount,
+                                notes: apPaymentNotes
+                              });
+                              alert(`Execution of payments for Rp ${apPaymentAmount.toLocaleString('id-ID')} compiled. Outstanding liability records adjusted!`);
+                              setApPaymentAmount(0);
+                              setApPaymentReference('');
+                            }}
+                            className="w-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-2.5 rounded-lg shadow transition"
+                          >
+                            Authorize &amp; Dispense Payments
+                          </button>
+                        </div>
+                      )}
+
+                      {/* STEP 6: Paid / Closed - Automated Ledger Journals display */}
+                      {(selectedAP.status === 'Closed' || selectedAP.status === 'Partially Paid' || (selectedAP.payments && selectedAP.payments.length > 0)) && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+                          <span className="text-emerald-950 font-extrabold block text-xs flex items-center gap-1.5">
+                            <BookOpen className="w-4 h-4 text-emerald-600" /> Automated Double Entry Accounting Journal
+                          </span>
+                          <p className="text-[9px] text-emerald-800 leading-normal">System ledger double-entry posted automatically under GAAP without manual bookkeeping entries.</p>
+                          
+                          <div className="bg-white border rounded-lg overflow-hidden font-mono text-[9px] divide-y">
+                            {/* Invoice Booking Journal */}
+                            <div className="p-2 space-y-1">
+                              <span className="text-slate-400 block font-bold text-[8px]">1. AP Liability Recognition (Journal Base)</span>
+                              <div className="flex justify-between">
+                                <span className="text-slate-800 font-semibold">[1210] Raw Ingredient Inventory</span>
+                                <span className="text-emerald-700 font-bold">Rp {(selectedAP.amount || 0).toLocaleString('id-ID')} (DR)</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-slate-800 font-semibold">[1540] Pre-paid PPN Input Tax</span>
+                                <span className="text-emerald-700 font-bold">Rp {(selectedAP.tax || 0).toLocaleString('id-ID')} (DR)</span>
+                              </div>
+                              <div className="flex justify-between pl-3 border-l-2 border-slate-350">
+                                <span className="text-slate-500">[2100] Accounts Payable Ledger</span>
+                                <span className="text-rose-700 font-bold">Rp {(selectedAP.totalAmount || 0).toLocaleString('id-ID')} (CR)</span>
+                              </div>
+                            </div>
+
+                            {/* Payment Disbursement Journals */}
+                            {(selectedAP.payments || []).map((p: any, idx: number) => (
+                              <div key={idx} className="p-2 space-y-1 bg-emerald-50/50">
+                                <span className="text-slate-400 block font-bold text-[8px]">2. Treasury Payment Disbursement ({p.paymentId})</span>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-800 font-semibold">[2100] Accounts Payable Ledger</span>
+                                  <span className="text-emerald-700 font-bold">Rp {(p.amount || 0).toLocaleString('id-ID')} (DR)</span>
+                                </div>
+                                <div className="flex justify-between pl-3 border-l-2 border-slate-350">
+                                  <span className="text-slate-500">[1100] Operating Bank Cash ({p.bankAccount})</span>
+                                  <span className="text-rose-700 font-bold">Rp {(p.amount || 0).toLocaleString('id-ID')} (CR)</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display Audit Trail Logs */}
+                      <div className="space-y-1.5 pt-2 border-t text-[10px]">
+                        <span className="font-extrabold uppercase text-[9px] text-slate-400 tracking-wider block">Audit Trail Historian</span>
+                        <div className="space-y-1 divide-y divide-slate-100 max-h-32 overflow-y-auto pr-1">
+                          {(selectedAP.history || []).map((h: any, idx: number) => (
+                            <div key={idx} className="py-1 flex justify-between text-slate-500 font-medium">
+                              <span>{h.action}</span>
+                              <span className="text-slate-400 text-right">{h.date} - <span className="font-bold">{h.user}</span></span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white border rounded-2xl p-8 shadow-sm text-center text-slate-400 space-y-4">
+                    <BrainCircuit className="w-12 h-12 text-slate-300 mx-auto animate-pulse" />
+                    <div>
+                      <h4 className="font-bold text-slate-700 text-sm">Select invoice row to open details</h4>
+                      <p className="text-[11px] text-slate-400 mt-1 leading-normal">Allows auditing checks, document verification triggers, multi-stage supervisor signs, and cash dispatcher payment release cycles.</p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
             </div>
+
           </div>
         )}
 
         {/* 3. ACCOUNTS RECEIVABLE (Customer Debt) */}
         {activeTab === 'ar_list' && (
           <div className="space-y-6 animate-fade-in" id="sub-accounts-receivable-management">
-            {/* Stats section */}
+            
+            {/* Simulation Header & Navigation Panel */}
+            <div className="bg-slate-900 text-white rounded-2xl p-5 shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span className="bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">Simulation &amp; Authorization Role</span>
+                <h4 className="text-sm font-bold mt-1.5 flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" /> Active Enterprise Role Portal
+                </h4>
+                <p className="text-[10px] text-slate-400 mt-0.5">Toggle active authorization to execute billing dispatches, client receipt audits, collection cycles, and payments.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {(['Operations Admin', 'Factory Manager', 'Finance HQ', 'Director'] as const).map(role => (
+                  <button
+                    key={role}
+                    type="button"
+                    onClick={() => setActiveUserRole(role)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 ${
+                      activeUserRole === role
+                        ? 'bg-emerald-650 bg-emerald-600 text-white shadow-md border-b-2 border-emerald-800'
+                        : 'bg-slate-800 text-slate-300 hover:bg-slate-750 hover:text-white'
+                    }`}
+                  >
+                    {role}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Quick Stats Summary Card Grid */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="bg-white border rounded-xl p-5 shadow-sm">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Outstanding AR Total</span>
-                <span className="text-2xl font-black text-emerald-600 mt-block mt-1 block">
+                <span className="text-[10px] text-slate-405 font-bold uppercase tracking-wider block">Outstanding AR Total</span>
+                <span className="text-2xl font-black text-emerald-600 mt-1 block">
                   Rp {arAging.totalOutstanding.toLocaleString('id-ID')}
                 </span>
-                <span className="text-[10px] text-slate-500 block mt-2 font-mono">Real-time binding directly to sales ledger invoice.</span>
+                <span className="text-[9px] text-slate-500 block mt-1.5 font-mono">Binds real-time client wholesale orders</span>
               </div>
               <div className="bg-white border rounded-xl p-5 shadow-sm">
-                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">0 - 30 Days Out</span>
+                <span className="text-[10px] text-slate-401 font-bold uppercase tracking-wider block">0 - 30 Days Out</span>
                 <span className="text-lg font-black text-slate-900 mt-1 block">
                   Rp {arAging.days_0_30.toLocaleString('id-ID')}
                 </span>
@@ -1072,96 +2288,545 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
               </div>
             </div>
 
-            {/* List & Details of Generated AR Invoices */}
-            <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-              <div className="p-5 border-b bg-slate-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-600" /> Active Receivables AR &amp; Customer Invoices
-                  </h3>
-                  <p className="text-[11px] text-slate-500 mt-0.5">Dynamically populated from storefront &amp; wholesale sales transaction logs.</p>
+            {/* Unbilled Sales Shipment Intake Feed */}
+            {state.sales && state.sales.length > 0 && (
+              <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex gap-3">
+                  <FileSpreadsheet className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+                  <div>
+                    <span className="text-xs font-extrabold text-emerald-900 block">Available Sales Shipments (Pending Invoice Issue)</span>
+                    <p className="text-[10px] text-emerald-700 mt-0.5">The following wholesale delivery logs have been shipped successfully and can be issued as Accounts Receivable trade draft invoices.</p>
+                  </div>
                 </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b bg-slate-100 text-slate-500 font-bold">
-                      <th className="py-2.5 px-4 font-mono">Invoice Number</th>
-                      <th className="py-2.5 px-4">Customer Store Name</th>
-                      <th className="py-2.5 px-4">Invoice date</th>
-                      <th className="py-2.5 px-4">Payment Terms</th>
-                      <th className="py-2.5 px-4 text-emerald-700">Due Date</th>
-                      <th className="py-2.5 px-4 text-right">Invoice Amount</th>
-                      <th className="py-2.5 px-4">Collection Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {arInvoices.map((inv) => (
-                      <tr key={inv.id} className="hover:bg-slate-50">
-                        <td className="py-3.5 px-4 font-mono font-bold text-slate-900">{inv.invoiceNumber}</td>
-                        <td className="py-3.5 px-4 font-bold text-slate-800">{inv.customerName}</td>
-                        <td className="py-3.5 px-4">{inv.invoiceDate}</td>
-                        <td className="py-3.5 px-4 font-mono font-bold text-slate-400">{inv.paymentTerms}</td>
-                        <td className="py-3.5 px-4 text-slate-800 font-extrabold">{inv.dueDate}</td>
-                        <td className="py-3.5 px-4 text-right font-bold text-slate-950">Rp {inv.amount.toLocaleString('id-ID')}</td>
-                        <td className="py-3.5 px-4">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-wider ${
-                            inv.status === 'Paid' ? 'bg-emerald-100 text-emerald-800' :
-                            inv.status === 'Overdue' ? 'bg-rose-100 text-rose-800 animate-pulse' : 'bg-slate-100 text-slate-700'
-                          }`}>{inv.status}</span>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Collection rank dashboard */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <div className="bg-white border rounded-xl p-5 shadow-sm">
-                <span className="font-extrabold uppercase text-xs tracking-wider text-slate-900 block border-b pb-3 mb-4">Customer Groupings &amp; Collection Rates</span>
-                
-                <div className="space-y-4">
-                  {arCollectionStats.slice(0, 4).map((c, idx) => {
-                    const collectRate = Math.round((c.collected / Math.max(1, c.totalInvoiced)) * 100);
+                <div className="flex flex-wrap gap-2">
+                  {state.sales.filter((so: any) => !arList.some(ar => ar.id.includes(so.id))).map((so: any) => {
                     return (
-                      <div key={idx} className="space-y-1.5">
-                        <div className="flex justify-between text-xs font-bold text-slate-800">
-                          <span>{c.name}</span>
-                          <span>{collectRate}% Collected</span>
-                        </div>
-                        <div className="flex justify-between text-[10px] text-slate-400">
-                          <span>Out: Rp {c.outstanding.toLocaleString('id-ID')}</span>
-                          <span>Invoiced: Rp {c.totalInvoiced.toLocaleString('id-ID')}</span>
-                        </div>
-                        <div className="w-full bg-slate-100 rounded-full h-2">
-                          <div className="bg-emerald-500 h-2 rounded-full" style={{ width: `${collectRate}%` }}></div>
-                        </div>
-                      </div>
+                      <button
+                        key={so.id}
+                        type="button"
+                        onClick={() => {
+                          handleImportARFromSales(so);
+                          alert(`Successfully imported Sales Delivery Order #${so.id} into Accounts Receivable system as 'Draft'!`);
+                        }}
+                        className="bg-white border hover:bg-slate-50 text-slate-800 text-[10px] font-bold px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition whitespace-nowrap shadow-sm"
+                      >
+                        <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                        Import SO#{so.id} - Rp {so.totalHarga?.toLocaleString('id-ID')} ({so.pelangganName || 'Unassigned'})
+                      </button>
                     );
                   })}
                 </div>
               </div>
+            )}
 
-              <div className="bg-white border rounded-xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
-                <div>
-                  <span className="font-extrabold uppercase text-xs tracking-wider text-slate-900 block border-b pb-3 mb-3">Treasury Collection Policy Reminder</span>
-                  <div className="space-y-2 mt-4 text-xs font-medium text-slate-600">
-                    <div className="flex gap-2 text-amber-800 bg-amber-50 rounded-lg p-3 border border-amber-200">
-                      <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
+            {/* Main Interactive Work Area */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Ledger Table Column */}
+              <div className="lg:col-span-2 space-y-4">
+                <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                  
+                  {/* Table Header with Filters */}
+                  <div className="p-5 border-b bg-slate-50/50 space-y-3">
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                       <div>
-                        <strong>Collections Risk Warning:</strong> Three primary wholesale customers have passed due-cycle limits for more than 40 days. Invoices require verified payment notification follow-up actions before secondary dispatch releases can occur.
+                        <h3 className="font-bold text-slate-900 text-sm uppercase tracking-wider flex items-center gap-2">
+                          <TrendingUp className="w-4 h-4 text-emerald-600" /> Accounts Receivable Asset Ledger
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Audit customer wholesale trade receipts, setup collections, and post inward payments.</p>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingARModal(true)}
+                        className="bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-2 shadow transition"
+                      >
+                        <Plus className="w-4 h-4" /> Create Manual AR
+                      </button>
+                    </div>
+
+                    {/* Filter Elements */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-2 pt-2">
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
+                        <input
+                          type="text"
+                          value={arSearchText}
+                          onChange={(e) => setArSearchText(e.target.value)}
+                          placeholder="Search Customer or Invoice..."
+                          className="w-full pl-8 bg-white border border-slate-200 text-xs text-slate-800 p-2 rounded-lg"
+                        />
+                      </div>
+                      <select
+                        value={arSelectedFactory}
+                        onChange={(e) => setArSelectedFactory(e.target.value)}
+                        className="bg-white border border-slate-200 text-xs p-2 rounded-lg"
+                      >
+                        <option value="ALL">All Factories (CONSOLIDATED)</option>
+                        <option value="MPD">Madiun Premium Drink (MPD)</option>
+                        <option value="SSP">Sipahutar Soda Premium (SSP)</option>
+                        <option value="AGDN">Agrowisata Drink Nusantara (AGDN)</option>
+                        <option value="JKT">Jakarta HQ Facility</option>
+                      </select>
+                      <select
+                        value={arSelectedStatus}
+                        onChange={(e) => setArSelectedStatus(e.target.value)}
+                        className="bg-white border border-slate-200 text-xs p-2 rounded-lg"
+                      >
+                        <option value="ALL">All Statuses</option>
+                        <option value="Draft">Draft</option>
+                        <option value="Issued">Issued (Billed to Client)</option>
+                        <option value="Delivered">Delivered (Proof Registered)</option>
+                        <option value="Confirmed">Confirmed Trade (Awaiting Pay)</option>
+                        <option value="Collection">Collections Plan (Active Risk)</option>
+                        <option value="Partially Paid">Partially Paid</option>
+                        <option value="Closed">Closed / Fully Collected</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Asset Receivable Grid Rows */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b bg-slate-100 text-slate-500 font-bold uppercase tracking-wider text-[10px]">
+                          <th className="py-3 px-4">Invoice ID / AR Num</th>
+                          <th className="py-3 px-4">Customer &amp; Unit</th>
+                          <th className="py-3 px-4">Invoice Date</th>
+                          <th className="py-3 px-4 text-emerald-700">Due Date</th>
+                          <th className="py-3 px-4 text-right">Outstanding / Invoiced Amount</th>
+                          <th className="py-3 px-4 text-center">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                        {arInvoices
+                          .filter(ar => {
+                            const nameMatch = ar.customerName.toLowerCase().includes(arSearchText.toLowerCase()) || ar.invoiceNumber.toLowerCase().includes(arSearchText.toLowerCase());
+                            const factoryMatch = arSelectedFactory === 'ALL' || ar.factory === arSelectedFactory;
+                            const statusMatch = arSelectedStatus === 'ALL' || ar.status === arSelectedStatus;
+                            return nameMatch && factoryMatch && statusMatch;
+                          })
+                          .map((ar) => (
+                            <tr
+                              key={ar.id}
+                              onClick={() => setSelectedAR(ar)}
+                              className={`hover:bg-slate-50/80 cursor-pointer transition-colors duration-100 ${
+                                selectedAR?.id === ar.id ? 'bg-emerald-50/60 font-semibold border-l-4 border-emerald-500' : ''
+                              }`}
+                            >
+                              <td className="py-3 px-4 text-slate-900">
+                                <span className="font-extrabold block">{ar.id}</span>
+                                <span className="text-[10px] text-slate-400 font-mono block">{ar.arNumber || 'AR-DRAFT'}</span>
+                              </td>
+                              <td className="py-3 px-4 text-slate-800">
+                                <span className="font-bold text-slate-900 block">{ar.customerName}</span>
+                                <span className="text-[9px] bg-emerald-50 border border-emerald-200 text-emerald-800 font-extrabold uppercase tracking-wide px-1.5 py-0.5 rounded inline-block mt-0.5">
+                                  {ar.factory} Factory
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 text-slate-500">{ar.invoiceDate}</td>
+                              <td className="py-3 px-4 text-emerald-600 font-bold">{ar.dueDate}</td>
+                              <td className="py-3 px-4 text-right">
+                                <span className="text-slate-900 font-black block">Rp {ar.outstandingAmount?.toLocaleString('id-ID')}</span>
+                                <span className="text-[9px] text-slate-400 font-medium block">Total invoiced: Rp {(ar.totalAmount ?? ar.totalInvoice ?? 0).toLocaleString('id-ID')}</span>
+                              </td>
+                              <td className="py-3 px-4 text-center">
+                                <span className={`px-2.5 py-1 rounded-full text-[9px] font-extrabold uppercase tracking-widest ${
+                                  ar.status === 'Closed' || ar.status === 'Paid' ? 'bg-emerald-100 text-emerald-800 border border-emerald-3D0' :
+                                  ar.status === 'Overdue' ? 'bg-rose-100 text-rose-800 animate-pulse border border-rose-350' :
+                                  ar.status === 'Confirmed' || ar.status === 'Delivered' ? 'bg-teal-100 text-teal-850 border border-teal-300' :
+                                  ar.status === 'Partially Paid' ? 'bg-amber-100 text-amber-800 border border-amber-300' :
+                                  ar.status === 'Draft' ? 'bg-slate-100 text-slate-600 border' : 'bg-blue-100 text-blue-800 border border-blue-300'
+                                }`}>
+                                  {ar.status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Auxiliary scheduler panel */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="bg-white border rounded-2xl p-5 shadow-sm">
+                    <span className="font-extrabold uppercase text-xs tracking-wider text-slate-900 block border-b pb-3 mb-4 flex items-center gap-2">
+                       <ShieldCheck className="w-4 h-4 text-emerald-500" /> Active Customers &amp; Collection Rates
+                    </span>
+                    <div className="space-y-3">
+                      {arCollectionStats.map((c, idx) => {
+                        const collectRate = Math.round((c.collected / Math.max(1, c.totalInvoiced)) * 100);
+                        return (
+                          <div key={idx} className="space-y-1.5 text-xs text-slate-700">
+                            <div className="flex justify-between font-bold text-slate-800">
+                              <span>{c.name}</span>
+                              <span className="text-emerald-600">{collectRate}% Paid</span>
+                            </div>
+                            <div className="flex justify-between text-[9px] text-slate-400">
+                              <span>Risk Hold: Rp {c.outstanding.toLocaleString('id-ID')}</span>
+                              <span>Year Invoiced: Rp {c.totalInvoiced.toLocaleString('id-ID')}</span>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-1.5">
+                              <div className="bg-emerald-500 h-1.5 rounded-full" style={{ width: `${collectRate}%` }}></div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-950 text-white border rounded-2xl p-5 shadow-sm relative overflow-hidden flex flex-col justify-between">
+                    <div>
+                      <span className="font-extrabold uppercase text-xs tracking-wider text-amber-500 block border-b border-slate-800 pb-3 mb-3">
+                        Treasury Inward Policy Alert
+                      </span>
+                      <div className="space-y-2 mt-4 text-[11px] font-medium text-slate-300">
+                        <div className="flex gap-2">
+                          <AlertTriangle className="w-5 h-5 text-amber-450 text-amber-500 shrink-0 mt-0.5 animate-bounce" />
+                          <div>
+                            <strong>Active Credit Holds Warning:</strong> Multi-factory delivery rule states wholesale shipment queues are locked for clients with overdues &gt; 45 days. Verify bank transfers immediately to resume normal logistics channels.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="pt-3 text-[9px] text-slate-500 border-t border-slate-900 flex justify-between">
+                      <span>GAAP Audit: Compliant</span>
+                      <span>Real-time consolidated</span>
                     </div>
                   </div>
                 </div>
-                <div className="pt-2 text-[10px] text-slate-400">
-                  Updated automatic alerts compiled standard 24-hours cycles.
-                </div>
+
               </div>
+
+              {/* Workflow Details Sidebar Drawer */}
+              <div className="lg:col-span-1 space-y-4">
+                
+                {selectedAR ? (
+                  <div className="bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden animate-slide-in">
+                    
+                    {/* Drawer Header */}
+                    <div className="bg-slate-950 text-white p-5">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="bg-emerald-600 text-white text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full">
+                            Accounts Receivable Assets
+                          </span>
+                          <h4 className="text-sm font-black mt-2 font-mono">{selectedAR.id}</h4>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">Wholesale Purchaser: <strong>{selectedAR.customerName}</strong></span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedAR(null)}
+                          className="bg-slate-800 hover:bg-slate-700 text-slate-300 p-1.5 rounded-lg transition"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Timeline status indicator */}
+                      <div className="mt-5 grid grid-cols-7 text-[8px] font-black uppercase text-center text-slate-500 gap-1 select-none">
+                        {(['Draft', 'Issued', 'Delivered', 'Confirmed', 'Collection', 'Paid', 'Closed'] as const).map((step, idx) => {
+                          const isActive = selectedAR.status === step || (step === 'Paid' && selectedAR.status === 'Partially Paid');
+                          return (
+                            <div key={idx} className="space-y-1">
+                              <div className={`h-1 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-800'}`}></div>
+                              <span className={isActive ? 'text-emerald-450 text-emerald-400 font-extrabold' : ''}>{step}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Drawer Content */}
+                    <div className="p-5 space-y-5 text-xs text-slate-700 font-medium">
+                      
+                      {/* Technical Fields list */}
+                      <div className="bg-slate-50 border rounded-xl p-3.5 space-y-2">
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Tax Invoice Id</span>
+                          <span className="font-mono text-slate-800 text-right font-extrabold">{selectedAR.invoiceNumber}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Payment Terms</span>
+                          <span className="text-slate-800 text-right font-bold">{selectedAR.paymentTerms}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Issue Booking Date</span>
+                          <span className="text-slate-800 text-right">{selectedAR.invoiceDate}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400">Contractual Due Date</span>
+                          <span className="text-emerald-600 font-extrabold text-right">{selectedAR.dueDate}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 font-mono">Output PPN (11%)</span>
+                          <span className="text-right font-mono text-slate-500">Rp {(selectedAR.tax || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div className="grid grid-cols-2 pt-1.5 border-t border-slate-200">
+                          <span className="text-xs uppercase font-extrabold text-slate-900">Total Invoice Assets</span>
+                          <span className="text-right text-slate-950 text-sm font-black">Rp {(selectedAR.totalAmount ?? selectedAR.totalInvoice ?? 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        <div className="grid grid-cols-2">
+                          <span className="text-[10px] uppercase font-bold text-slate-500">Awaiting Inward Bank Collect</span>
+                          <span className="text-right text-emerald-600 font-black">Rp {(selectedAR.outstandingAmount || 0).toLocaleString('id-ID')}</span>
+                        </div>
+                        {selectedAR.buyerReferenceId && (
+                          <div className="pt-2 border-t mt-1.5 text-[10px] text-slate-500">
+                            <strong>Buyer PO Refer:</strong> {selectedAR.buyerReferenceId}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Document Proofs */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider block">Customer Receipt Acknowledgement Proofs</span>
+                        {(!selectedAR.attachments || selectedAR.attachments.length === 0) ? (
+                          <div className="text-center bg-slate-50 border p-3 rounded-lg text-slate-400 text-[10px]">
+                            No cargo dispatch receipt proofs uploaded yet.
+                          </div>
+                        ) : (
+                          <div className="space-y-1.5">
+                            {(selectedAR.attachments || []).map((file: any, key: number) => (
+                              <div key={key} className="flex items-center justify-between bg-slate-50 border p-2 rounded-lg text-[10px]">
+                                <span className="font-bold text-slate-800 truncate max-w-[70%]">{file.name}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => alert(`Reviewing received customer proof attachment: ${file.name}`)}
+                                  className="text-emerald-600 hover:text-emerald-700 font-bold"
+                                >
+                                  Open Proof
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* DYNAMIC ACTION SUB-PANELS BASED ON CORE AR LIFECYCLE */}
+
+                      {/* STEP 1: Draft - Submit & Despatch */}
+                      {selectedAR.status === 'Draft' && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
+                          <span className="text-blue-900 font-extrabold block text-xs">Stage 2: Customer E-Billing Dispatch</span>
+                          <p className="text-[10px] text-blue-700 leading-relaxed">Publish draft ledger invoice and transmit e-billing notice to wholesale client treasury team.</p>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateARStatus(selectedAR.id, 'Issued')}
+                            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-extrabold py-2 rounded-lg inline-flex items-center justify-center gap-2 transition"
+                          >
+                            <CheckSquare className="w-4 h-4" /> Issue Invoice and Mail Client
+                          </button>
+                        </div>
+                      )}
+
+                      {/* STEP 2: Issued - Shipment Log matching */}
+                      {selectedAR.status === 'Issued' && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3 text-[10px]">
+                          <span className="text-amber-900 font-extrabold block text-xs">Stage 3: Register Logistics Dispatch Proof</span>
+                          <p className="text-amber-700 leading-relaxed">Register physical logistics dispatch notes to match bulk drink crates deliver cargo logs.</p>
+                          
+                          {activeUserRole === 'Operations Admin' || activeUserRole === 'Finance HQ' || activeUserRole === 'Director' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleUpdateARStatus(selectedAR.id, 'Delivered');
+                              }}
+                              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-extrabold py-2 rounded-lg inline-flex items-center justify-center gap-1.5 transition"
+                            >
+                              <CheckSquare className="w-4 h-4" /> Record Logistical Delivery Proof
+                            </button>
+                          ) : (
+                            <div className="bg-amber-100 text-amber-850 p-2.5 rounded text-center border font-bold">
+                              Need "Operations Admin" authorization role toggled to input log proofs.
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* STEP 3: Delivered - Client receipt verification */}
+                      {selectedAR.status === 'Delivered' && (
+                        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-3">
+                          <span className="text-slate-900 font-extrabold block text-xs">Stage 4: Client Treasury Confirmation Sign</span>
+                          <p className="text-[10px] text-slate-700 leading-relaxed">Confirm physical crates delivery accepted by client's logistics team, establishing undisputed credit contract liability.</p>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateARStatus(selectedAR.id, 'Confirmed')}
+                            className="w-full bg-slate-900 hover:bg-slate-800 text-white font-bold py-2 rounded-lg transition"
+                          >
+                            Confirm Undisputed Client Accept
+                          </button>
+                        </div>
+                      )}
+
+                      {/* STEP 4: Confirmed - Initiate collection followups */}
+                      {selectedAR.status === 'Confirmed' && (
+                        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+                          <span className="text-amber-950 font-extrabold block text-xs">Stage 5: Assign Collections Priority Target</span>
+                          <p className="text-[10px] text-amber-800 leading-relaxed">Assign standard AR collection cycle trackers, target field collectors, and log compliance notes.</p>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateARStatus(selectedAR.id, 'Collection')}
+                            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-bold py-2 rounded-lg transition animate-pulse"
+                          >
+                            Activate Accounts Receivable Collections Plan
+                          </button>
+                        </div>
+                      )}
+
+                      {/* STEP 5: Collection or Partially Paid - Record inward payment */}
+                      {(selectedAR.status === 'Collection' || selectedAR.status === 'Partially Paid' || selectedAR.status === 'Confirmed') && (
+                        <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 space-y-3">
+                          <span className="text-emerald-950 font-extrabold block text-xs flex items-center gap-1.5">
+                            <Scale className="w-4 h-4 text-emerald-600" /> Stage 6: Authorize Inward Cash Collection
+                          </span>
+                          <p className="text-[10px] text-emerald-850 leading-relaxed">Receive bank transfer funds from customer, updating cash accounts and diminishing AR customer assets.</p>
+
+                          <div className="space-y-2 pt-1">
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block">Operating Bank Account</label>
+                                <select
+                                  value={arPaymentBank}
+                                  onChange={(e) => setArPaymentBank(e.target.value)}
+                                  className="w-full bg-white border rounded p-1 text-xs"
+                                >
+                                  {bankAccounts.map(b => (
+                                    <option key={b.id} value={b.id}>{b.name}</option>
+                                  ))}
+                                </select>
+                              </div>
+                              <div>
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block font-mono">Clearing Reference</label>
+                                <input
+                                  type="text"
+                                  required
+                                  value={arPaymentReference}
+                                  onChange={(e) => setArPaymentReference(e.target.value)}
+                                  placeholder="TRF-BCA-8409"
+                                  className="w-full bg-white border rounded p-1 text-xs"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <div className="flex justify-between items-center">
+                                <label className="text-[9px] uppercase font-bold text-slate-500 block font-mono">Inward Payments received (Rp)</label>
+                                <button
+                                  type="button"
+                                  onClick={() => setArPaymentAmount(selectedAR.outstandingAmount)}
+                                  className="text-[9px] text-emerald-700 font-bold hover:underline"
+                                >
+                                  Full Amount
+                                </button>
+                              </div>
+                              <input
+                                type="number"
+                                required
+                                value={arPaymentAmount}
+                                onChange={(e) => setArPaymentAmount(Number(e.target.value))}
+                                className="w-full bg-white border rounded p-1.5 text-xs font-black text-emerald-700"
+                              />
+                            </div>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (arPaymentAmount <= 0) {
+                                alert('Provide valid positive decimal currency collection limits!');
+                                return;
+                              }
+                              handleUpdateARStatus(selectedAR.id, 'Paid', {
+                                bankAccount: arPaymentBank,
+                                reference: arPaymentReference,
+                                amount: arPaymentAmount
+                              });
+                              alert(`Successfully verified inward payment clearing for Rp ${arPaymentAmount.toLocaleString('id-ID')} inside Operating Bank!`);
+                              setArPaymentAmount(0);
+                              setArPaymentReference('');
+                            }}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-2 rounded-lg shadow transition"
+                          >
+                            Verify &amp; Clear Inward Collections
+                          </button>
+                        </div>
+                      )}
+
+                      {/* STEP 6: Closed - Double-entry Accounting Journals Display */}
+                      {(selectedAR.status === 'Closed' || (selectedAR.payments && selectedAR.payments.length > 0)) && (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 space-y-3">
+                          <span className="text-emerald-950 font-extrabold block text-xs flex items-center gap-1.5">
+                            <BookOpen className="w-4 h-4 text-emerald-600" /> Automated Double Entry Accounting Journal
+                          </span>
+                          <p className="text-[9px] text-emerald-800 leading-normal">System asset ledger trade recognition values, posted instantly during transactional lifecycles.</p>
+                          
+                          <div className="bg-white border rounded-lg overflow-hidden font-mono text-[9px] divide-y">
+                            {/* Invoice Booking Journal */}
+                            <div className="p-2 space-y-1">
+                              <span className="text-slate-400 block font-bold text-[8px]">1. AR Wholesale Asset Recognition</span>
+                              <div className="flex justify-between">
+                                <span className="text-slate-800 font-semibold">[1120] Customers AR Trade Assets</span>
+                                <span className="text-emerald-700 font-bold">Rp {(selectedAR.totalAmount ?? selectedAR.totalInvoice ?? 0).toLocaleString('id-ID')} (DR)</span>
+                              </div>
+                              <div className="flex justify-between pl-3 border-l-2 border-slate-350">
+                                <span className="text-slate-500">[4100] Wholesale Sales Income</span>
+                                <span className="text-rose-700 font-bold">Rp {(selectedAR.amount ?? selectedAR.totalInvoice ?? 0).toLocaleString('id-ID')} (CR)</span>
+                              </div>
+                              <div className="flex justify-between pl-3 border-l-2 border-slate-350">
+                                <span className="text-slate-500">[2210] Value Added Output Tax (PPN)</span>
+                                <span className="text-rose-700 font-bold">Rp {(selectedAR.tax || 0).toLocaleString('id-ID')} (CR)</span>
+                              </div>
+                            </div>
+
+                            {/* Payment Clearing Journals */}
+                            {(selectedAR.payments || []).map((p: any, idx: number) => (
+                              <div key={idx} className="p-2 space-y-1 bg-emerald-50/50">
+                                <span className="text-slate-400 block font-bold text-[8px]">2. Bank Inward Clearance ({p.paymentId})</span>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-800 font-semibold">[1100] Operating Bank Cash ({p.bankAccount})</span>
+                                  <span className="text-emerald-700 font-bold">Rp {(p.amount || 0).toLocaleString('id-ID')} (DR)</span>
+                                </div>
+                                <div className="flex justify-between pl-3 border-l-2 border-slate-350">
+                                  <span className="text-slate-500">[1120] Customers AR Trade Assets</span>
+                                  <span className="text-rose-700 font-bold">Rp {(p.amount || 0).toLocaleString('id-ID')} (CR)</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Display Audit Trail Logs */}
+                      <div className="space-y-1.5 pt-2 border-t text-[10px]">
+                        <span className="font-extrabold uppercase text-[9px] text-slate-400 tracking-wider block">Audit Trail Historian</span>
+                        <div className="space-y-1 divide-y divide-slate-100 max-h-32 overflow-y-auto pr-1">
+                          {(selectedAR.history || []).map((h: any, idx: number) => (
+                            <div key={idx} className="py-1 flex justify-between text-slate-500 font-medium">
+                              <span>{h.action}</span>
+                              <span className="text-slate-400 text-right">{h.date} - <span className="font-bold">{h.user}</span></span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white border rounded-2xl p-8 shadow-sm text-center text-slate-400 space-y-4">
+                    <BrainCircuit className="w-12 h-12 text-slate-300 mx-auto animate-pulse" />
+                    <div>
+                      <h4 className="font-bold text-slate-700 text-sm">Select invoice row to open details</h4>
+                      <p className="text-[11px] text-slate-400 mt-1 leading-normal">Allows auditing dispatch records, receiving delivery proof logs, establishing collections cycles, bank integration payment clearings, and automatic asset journal logs.</p>
+                    </div>
+                  </div>
+                )}
+
+              </div>
+
             </div>
+
           </div>
         )}
 
@@ -1769,6 +3434,313 @@ export default function FinanceManager({ state, activeMenu, currentUser, onNavig
               <div className="pt-2 flex justify-end gap-2">
                 <button type="button" onClick={() => setIsAddingBankTx(false)} className="px-3 py-1.5 bg-slate-200 text-slate-600 font-bold rounded text-xs">Cancel</button>
                 <button type="submit" className="px-4 py-1.5 bg-slate-900 text-white font-bold rounded text-xs">Post transaction</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Adding Manual Accounts Payable (AP) Modal */}
+      {isAddingAPModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in text-left">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="bg-rose-950 text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet className="w-5 h-5 text-rose-300" />
+                <span className="font-extrabold text-sm uppercase tracking-wider">Create Manual AP (Accounts Payable)</span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsAddingAPModal(false)} 
+                className="text-white/80 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateAPManual} className="p-6 space-y-4 font-medium text-slate-800">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Supplier Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAPForm.supplierName}
+                    onChange={(e) => setNewAPForm(p => ({ ...p, supplierName: e.target.value }))}
+                    placeholder="E.g. Agro Sentosa Mandiri"
+                    className="w-full bg-slate-50 border p-2 rounded text-xs font-semibold focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Invoice Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newAPForm.invoiceNumber}
+                    onChange={(e) => setNewAPForm(p => ({ ...p, invoiceNumber: e.target.value }))}
+                    placeholder="E.g. INV/2026/SUP"
+                    className="w-full bg-slate-50 border p-2 rounded text-xs font-mono font-bold focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Invoice Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newAPForm.invoiceDate}
+                    onChange={(e) => setNewAPForm(p => ({ ...p, invoiceDate: e.target.value }))}
+                    className="w-full bg-slate-50 border p-2 rounded text-xs focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Due Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newAPForm.dueDate}
+                    onChange={(e) => setNewAPForm(p => ({ ...p, dueDate: e.target.value }))}
+                    className="w-full bg-slate-50 border p-2 rounded text-xs focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Factory Segment *</label>
+                  <select
+                    value={newAPForm.factory}
+                    onChange={(e) => setNewAPForm(p => ({ ...p, factory: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-rose-500"
+                  >
+                    <option value="MPD">Madiun Premium Drink (MPD)</option>
+                    <option value="SSP">Sipahutar Soda Premium (SSP)</option>
+                    <option value="AGDN">Agrowisata Drink Nusantara (AGDN)</option>
+                    <option value="JKT">Jakarta HQ Facility</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Payment Terms *</label>
+                  <select
+                    value={newAPForm.paymentTerms}
+                    onChange={(e) => setNewAPForm(p => ({ ...p, paymentTerms: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-rose-500"
+                  >
+                    <option value="CASH">Cash On Delivery</option>
+                    <option value="NET 7">NET 7 Days</option>
+                    <option value="NET 14">NET 14 Days</option>
+                    <option value="NET 30">NET 30 Days</option>
+                    <option value="NET 60">NET 60 Days</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Subtotal Amount (Sebelum PPN 11%) *</label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                  <input
+                    type="number"
+                    required
+                    min={1}
+                    value={newAPForm.amount}
+                    onChange={(e) => setNewAPForm(p => ({ ...p, amount: Number(e.target.value) }))}
+                    className="w-full pl-8 bg-slate-50 border p-2 rounded text-xs font-bold focus:ring-1 focus:ring-rose-500"
+                  />
+                </div>
+                <p className="text-[9px] text-slate-400 mt-0.5">Note: PPN 11% (Rp {(newAPForm.amount * 0.11).toLocaleString('id-ID')}) will be appended automatically. Total liability will be Rp {(newAPForm.amount * 1.11).toLocaleString('id-ID')}.</p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Notes / Item Description *</label>
+                <textarea
+                  required
+                  value={newAPForm.notes}
+                  onChange={(e) => setNewAPForm(p => ({ ...p, notes: e.target.value }))}
+                  placeholder="Detail item description or purchase purposes..."
+                  rows={2}
+                  className="w-full bg-slate-50 border p-2 rounded text-xs focus:ring-1 focus:ring-rose-500"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t mt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddingAPModal(false)} 
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-rose-600/20"
+                >
+                  Generate Manual Liability Card
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Adding Manual Accounts Receivable (AR) Modal */}
+      {isAddingARModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in text-left">
+          <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg overflow-hidden flex flex-col">
+            <div className="bg-emerald-950 text-white p-4 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-emerald-300" />
+                <span className="font-extrabold text-sm uppercase tracking-wider">Create Manual AR (Accounts Receivable)</span>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setIsAddingARModal(false)} 
+                className="text-white/80 hover:text-white transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateARManual} className="p-6 space-y-4 font-medium text-slate-800">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Customer / Client Name *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newARForm.customerName}
+                    onChange={(e) => setNewARForm(p => ({ ...p, customerName: e.target.value }))}
+                    placeholder="E.g. Indogrosir Group Malang"
+                    className="w-full bg-slate-50 border p-2 rounded text-xs font-semibold focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Customer Class Type *</label>
+                  <select
+                    value={newARForm.customerType}
+                    onChange={(e) => setNewARForm(p => ({ ...p, customerType: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="Wholesaler">Wholesaler Distributor</option>
+                    <option value="Retailer">Independent Retailer</option>
+                    <option value="Supermarket">Supermarket / Hypermarket</option>
+                    <option value="Exporter">International Exporter</option>
+                    <option value="Direct font-bold">Direct B2B Purchaser</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Outgoing Invoice Number *</label>
+                  <input
+                    type="text"
+                    required
+                    value={newARForm.invoiceNumber}
+                    onChange={(e) => setNewARForm(p => ({ ...p, invoiceNumber: e.target.value }))}
+                    placeholder="E.g. INV/2026/CUST"
+                    className="w-full bg-slate-50 border p-2 rounded text-xs font-mono font-bold focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Factory Origin *</label>
+                  <select
+                    value={newARForm.factory}
+                    onChange={(e) => setNewARForm(p => ({ ...p, factory: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="MPD">Madiun Premium Drink (MPD)</option>
+                    <option value="SSP">Sipahutar Soda Premium (SSP)</option>
+                    <option value="AGDN">Agrowisata Drink Nusantara (AGDN)</option>
+                    <option value="JKT">Jakarta HQ Facility</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Invoice Issue Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newARForm.invoiceDate}
+                    onChange={(e) => setNewARForm(p => ({ ...p, invoiceDate: e.target.value }))}
+                    className="w-full bg-slate-50 border p-2 rounded text-xs focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Payment Due Date *</label>
+                  <input
+                    type="date"
+                    required
+                    value={newARForm.dueDate}
+                    onChange={(e) => setNewARForm(p => ({ ...p, dueDate: e.target.value }))}
+                    className="w-full bg-slate-50 border p-2 rounded text-xs focus:ring-1 focus:ring-emerald-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1 text-slate-800">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Allowed Terms *</label>
+                  <select
+                    value={newARForm.paymentTerms}
+                    onChange={(e) => setNewARForm(p => ({ ...p, paymentTerms: e.target.value }))}
+                    className="w-full bg-slate-50 border border-slate-300 rounded p-2 text-xs focus:ring-1 focus:ring-emerald-500"
+                  >
+                    <option value="CASH">Cash On Delivery</option>
+                    <option value="NET 7">NET 7 Days</option>
+                    <option value="NET 14">NET 14 Days</option>
+                    <option value="NET 30">NET 30 Days</option>
+                    <option value="NET 60">NET 60 Days</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-slate-500 uppercase">Base Invoice Revenue *</label>
+                  <div className="relative">
+                    <span className="absolute left-2.5 top-2.5 text-xs font-bold text-slate-400">Rp</span>
+                    <input
+                      type="number"
+                      required
+                      min={1}
+                      value={newARForm.amount}
+                      onChange={(e) => setNewARForm(p => ({ ...p, amount: Number(e.target.value) }))}
+                      className="w-full pl-8 bg-slate-50 border p-2 rounded text-xs font-bold focus:ring-1 focus:ring-emerald-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1 text-slate-500 text-[10px]">
+                <p>Output tax PPN 11% (Rp {(newARForm.amount * 0.11).toLocaleString('id-ID')}) is automatically counted. The total invoiced receivable generated is Rp {(newARForm.amount * 1.11).toLocaleString('id-ID')}.</p>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-500 uppercase">Activity Notes / Ledger Memo *</label>
+                <textarea
+                  required
+                  value={newARForm.notes}
+                  onChange={(e) => setNewARForm(p => ({ ...p, notes: e.target.value }))}
+                  placeholder="E.g. Wholesale invoice representing sipahutar juices wholesale dispatch to Malang warehouses..."
+                  rows={2}
+                  className="w-full bg-slate-50 border p-2 rounded text-xs focus:ring-1 focus:ring-emerald-500"
+                />
+              </div>
+
+              <div className="pt-2 flex justify-end gap-2 border-t mt-4">
+                <button 
+                  type="button" 
+                  onClick={() => setIsAddingARModal(false)} 
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-emerald-600/20"
+                >
+                  Generate Manual Invoice Asset
+                </button>
               </div>
             </form>
           </div>

@@ -26,6 +26,7 @@ import {
   AlertCircle,
   Trash2,
   Download,
+  RefreshCw,
   Scale,
   Layers,
   Award,
@@ -140,6 +141,8 @@ export default function PettyCashManager({ state, setPettyCash, currentUser }: P
   const [allocDate, setAllocDate] = useState<string>('2026-06-03');
   const [allocAmount, setAllocAmount] = useState<number>(2000000);
   const [allocNotes, setAllocNotes] = useState<string>('');
+  const [allocInvoices, setAllocInvoices] = useState<Array<{ name: string; type: string; base64?: string }>>([]);
+  const [allocIsDrag, setAllocIsDrag] = useState<boolean>(false);
 
   // Form Fields: Custom Account COA
   const [newAccId, setNewAccId] = useState<string>('');
@@ -156,6 +159,9 @@ export default function PettyCashManager({ state, setPettyCash, currentUser }: P
   const [reconLogs, setReconLogs] = useState<any[]>([
     { id: 'RC-001', tanggal: '2026-05-31', factoryId: 'MPD', expected: 3800000, actual: 3800000, difference: 0, notes: 'End of Month Audit Match', status: 'Matched', pic: 'hendra_finance' }
   ]);
+  
+  // Document previewer modal state
+  const [previewingDoc, setPreviewingDoc] = useState<{ name: string; type: string; base64?: string } | null>(null);
 
   // --- Filter states ---
   const [selectedFactoryFilter, setSelectedFactoryFilter] = useState<string>('All');
@@ -370,6 +376,132 @@ export default function PettyCashManager({ state, setPettyCash, currentUser }: P
     setIsAddingTx(false);
   };
 
+  // Fund Allocation Attachment Handlers
+  const handleAllocDocDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setAllocIsDrag(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      const filesArr = Array.from(e.dataTransfer.files) as File[];
+      filesArr.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setAllocInvoices(prev => [
+            ...prev,
+            { name: file.name, type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'), base64 }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleAllocDocFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArr = Array.from(e.target.files) as File[];
+      filesArr.forEach(file => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setAllocInvoices(prev => [
+            ...prev,
+            { name: file.name, type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'), base64 }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const handleRemoveAllocDoc = (index: number) => {
+    setAllocInvoices(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleReplaceAllocDoc = (index: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setAllocInvoices(prev => prev.map((item, idx) => {
+          if (idx === index) {
+            return {
+              name: file.name,
+              type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+              base64
+            };
+          }
+          return item;
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRowDeleteDoc = (allocId: string, docIdx: number) => {
+    setAllocations(prev => prev.map(a => {
+      if (a.id === allocId) {
+        const docs = (a.documents || []).filter((_: any, idx: number) => idx !== docIdx);
+        return { ...a, documents: docs };
+      }
+      return a;
+    }));
+  };
+
+  const handleRowReplaceDoc = (allocId: string, docIdx: number, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = reader.result as string;
+        setAllocations(prev => prev.map(a => {
+          if (a.id === allocId) {
+            const docs = (a.documents || []).map((doc: any, idx: number) => {
+              if (idx === docIdx) {
+                return {
+                  name: file.name,
+                  type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+                  base64
+                };
+              }
+              return doc;
+            });
+            return { ...a, documents: docs };
+          }
+          return a;
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRowAddDoc = (allocId: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const filesArr = Array.from(e.target.files) as File[];
+      filesArr.forEach((file: File) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const base64 = reader.result as string;
+          setAllocations(prev => prev.map(a => {
+            if (a.id === allocId) {
+              const docs = [
+                ...(a.documents || []),
+                {
+                  name: file.name,
+                  type: file.type || (file.name.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg'),
+                  base64
+                }
+              ];
+              return { ...a, documents: docs };
+            }
+            return a;
+          }));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
   // Create Petty Cash Fund Allocation
   const handleAddAllocSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -382,12 +514,14 @@ export default function PettyCashManager({ state, setPettyCash, currentUser }: P
       openingBalance: openingBal,
       amountAdded: allocAmount,
       notes: allocNotes || 'Regular capital top up',
-      pic: currentUser.namaLengkap
+      pic: currentUser.namaLengkap,
+      documents: allocInvoices
     };
 
     setAllocations(prev => [newAlloc, ...prev]);
     setIsAddingAlloc(false);
     setAllocNotes('');
+    setAllocInvoices([]);
   };
 
   // Workflow Approval Handlers
@@ -610,6 +744,62 @@ export default function PettyCashManager({ state, setPettyCash, currentUser }: P
       </div>
 
       <div className="p-6">
+
+        {/* ================= MODAL DIALOGS: VIEW ATTACHMENT PREVIEW ================= */}
+        {previewingDoc && (
+          <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 z-[60] animate-fade-in" id="previewing-attachment-modal">
+            <div className="bg-white rounded-2xl shadow-2xl border border-slate-300 w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh] animate-scale-up">
+              <div className="bg-slate-900 text-white p-4 flex items-center justify-between">
+                <div className="flex items-center space-x-2 truncate">
+                  <FileText className="w-5 h-5 text-indigo-400 shrink-0" />
+                  <span className="font-bold text-xs uppercase truncate" title={previewingDoc.name}>{previewingDoc.name}</span>
+                </div>
+                <button onClick={() => setPreviewingDoc(null)} className="text-slate-400 hover:text-white p-1 rounded-full hover:bg-slate-800 shrink-0">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              
+              <div className="p-6 bg-slate-100 flex items-center justify-center min-h-[300px] max-h-[60vh] overflow-auto">
+                {previewingDoc.base64 ? (
+                  <img src={previewingDoc.base64} alt={previewingDoc.name} className="max-w-full max-h-full object-contain rounded shadow-lg" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="text-center p-8 space-y-2 text-slate-500">
+                    <AlertCircle className="w-12 h-12 text-slate-400 mx-auto" />
+                    <p className="font-semibold text-sm">No Preview Available</p>
+                    <p className="text-xs">For non-image supporting documents, click download to review the asset content.</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-4 bg-slate-50 border-t flex justify-between items-center text-xs">
+                <span className="text-slate-500 truncate max-w-[60%] font-mono">Format: {previewingDoc.type || 'Unknown'}</span>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreviewingDoc(null)}
+                    className="bg-slate-200 text-slate-700 font-bold px-4 py-2 rounded-lg text-xs"
+                  >
+                    Close
+                  </button>
+                  {previewingDoc.base64 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const link = document.createElement('a');
+                        link.href = previewingDoc.base64!;
+                        link.download = previewingDoc.name;
+                        link.click();
+                      }}
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg text-xs flex items-center gap-1"
+                    >
+                      <Download className="w-4 h-4" /> Download
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ================= MODAL DIALOGS: ADD TX ================= */}
         {isAddingTx && (
@@ -870,6 +1060,89 @@ export default function PettyCashManager({ state, setPettyCash, currentUser }: P
                     placeholder="e.g. Monthly Operational Capital Replenish"
                     className="w-full border border-slate-300 rounded-lg p-2 text-xs text-slate-800 font-medium"
                   />
+                </div>
+
+                {/* Fund Allocation Attachments (Bank Slips, Receipts, Official Letters) */}
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold uppercase text-slate-500 block">Supporting Evidence / Transfer Proof *</label>
+                  <div className="relative">
+                    <div
+                      onDragOver={(e) => { e.preventDefault(); setAllocIsDrag(true); }}
+                      onDragLeave={() => setAllocIsDrag(false)}
+                      onDrop={handleAllocDocDrop}
+                      className={`border-2 border-dashed rounded-xl p-4 text-center transition flex flex-col items-center justify-center cursor-pointer ${
+                        allocIsDrag ? 'border-amber-500 bg-amber-50' : 'border-slate-300 hover:border-slate-400 bg-slate-50'
+                      }`}
+                    >
+                      <UploadCloud className="w-6 h-6 text-slate-400 mb-1" />
+                      <p className="text-[10px] font-semibold text-slate-700">Drag &amp; Drop transfer slips here, or <span className="text-amber-600 hover:underline">browse</span></p>
+                      <p className="text-[8px] text-slate-400 mt-0.5 font-sans">Supported: JPG, PNG, PDF</p>
+                      
+                      <input
+                        type="file"
+                        multiple
+                        accept=".jpg,.jpeg,.png,.pdf"
+                        onChange={handleAllocDocFileInput}
+                        className="hidden"
+                        id="alloc-file-input"
+                      />
+                      <label htmlFor="alloc-file-input" className="absolute inset-0 w-full h-full cursor-pointer text-transparent" />
+                    </div>
+                  </div>
+
+                  {/* Fund Allocation Upload Previews */}
+                  {allocInvoices.length > 0 && (
+                    <div className="mt-2 space-y-2 border border-slate-200 rounded-lg p-2 bg-slate-100 max-h-40 overflow-y-auto">
+                      <p className="text-[8px] uppercase font-bold text-slate-500 block mb-1 font-sans">Draft Evidences ({allocInvoices.length})</p>
+                      {allocInvoices.map((doc, idx) => (
+                        <div key={idx} className="flex items-center justify-between text-[11px] bg-white border border-slate-200 rounded p-1.5 shadow-xs">
+                          <div className="flex items-center space-x-1 truncmax max-w-[65%]">
+                            <FileText className="w-3 h-3 text-amber-500 shrink-0" />
+                            <span className="truncate text-slate-700 font-sans">{doc.name}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            {/* Replace */}
+                            <label className="text-blue-500 hover:text-blue-600 cursor-pointer p-0.5 rounded-full hover:bg-slate-150" title="Replace file">
+                              <RefreshCw className="w-3 h-3" />
+                              <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                onChange={(e) => handleReplaceAllocDoc(idx, e)}
+                                className="hidden"
+                              />
+                            </label>
+
+                            {/* Download */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (doc.base64) {
+                                  const link = document.createElement('a');
+                                  link.href = doc.base64;
+                                  link.download = doc.name;
+                                  link.click();
+                                }
+                              }}
+                              className="text-emerald-500 hover:text-emerald-650 p-0.5 rounded-full hover:bg-slate-150"
+                              title="Download file"
+                            >
+                              <Download className="w-3 h-3" />
+                            </button>
+
+                            {/* Delete */}
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAllocDoc(idx)}
+                              className="text-rose-500 hover:text-rose-600 p-0.5 rounded-full hover:bg-slate-150"
+                              title="Delete file"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="pt-2 flex justify-end space-x-2">
@@ -1449,12 +1722,14 @@ export default function PettyCashManager({ state, setPettyCash, currentUser }: P
                     <th className="py-3 px-4 text-right">Post-Funding Balance</th>
                     <th className="py-3 px-4">Authorization PIC</th>
                     <th className="py-3 px-4">Allocated Notes</th>
+                    <th className="py-3 px-4">Evidence Docs & Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 text-slate-650">
                   {allocations.map((alloc) => {
                     const lName = factoryMap[alloc.factoryId] || alloc.factoryId;
                     const after = alloc.openingBalance + alloc.amountAdded;
+                    const hasDocs = alloc.documents && alloc.documents.length > 0;
                     return (
                       <tr key={alloc.id} className="hover:bg-slate-50/50">
                         <td className="py-3 px-4 font-mono font-bold text-slate-800">{alloc.id}</td>
@@ -1469,6 +1744,82 @@ export default function PettyCashManager({ state, setPettyCash, currentUser }: P
                         </td>
                         <td className="py-3 px-4 text-slate-500">@{alloc.pic}</td>
                         <td className="py-3 px-4 italic text-slate-450">{alloc.notes}</td>
+                        <td className="py-3 px-4">
+                          <div className="flex flex-col gap-1.5 p-1 bg-slate-50 rounded-lg border border-slate-200 text-[10px] w-full min-w-[190px]">
+                            {hasDocs && (alloc.documents || []).map((doc: any, docIdx: number) => (
+                              <div key={docIdx} className="flex items-center justify-between gap-1.5 p-1 bg-white border border-slate-200 rounded font-sans shadow-2xs">
+                                <div className="flex items-center space-x-1 max-w-[100px] truncate">
+                                  <FileText className="w-3 h-3 text-amber-500 shrink-0" />
+                                  <span className="text-[10px] text-slate-700 truncate font-sans" title={doc.name}>{doc.name}</span>
+                                </div>
+                                <div className="flex items-center space-x-0.5">
+                                  {/* View / Preview */}
+                                  {doc.base64 && (doc.type.includes('image') || doc.type.startsWith('image/')) ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setPreviewingDoc(doc)}
+                                      className="text-indigo-650 hover:text-indigo-800 p-0.5 rounded hover:bg-slate-100"
+                                      title="Preview Image"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                  ) : null}
+
+                                  {/* Download */}
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (doc.base64) {
+                                        const link = document.createElement('a');
+                                        link.href = doc.base64;
+                                        link.download = doc.name;
+                                        link.click();
+                                      } else {
+                                        alert("Simulated download of " + doc.name);
+                                      }
+                                    }}
+                                    className="text-emerald-600 hover:text-emerald-700 p-0.5 rounded hover:bg-slate-100"
+                                    title="Download File"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </button>
+
+                                  {/* Replace */}
+                                  <label className="text-blue-500 hover:text-blue-600 p-0.5 rounded hover:bg-slate-100 cursor-pointer" title="Replace file">
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    <input
+                                      type="file"
+                                      accept=".jpg,.jpeg,.png,.pdf"
+                                      onChange={(e) => handleRowReplaceDoc(alloc.id, docIdx, e)}
+                                      className="hidden"
+                                    />
+                                  </label>
+
+                                  {/* Delete */}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRowDeleteDoc(alloc.id, docIdx)}
+                                    className="text-rose-500 hover:text-rose-600 p-0.5 rounded hover:bg-rose-50"
+                                    title="Delete file"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* Option to append new documents directly to the row */}
+                            <label className="text-[9px] bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-0.5 px-1.5 rounded cursor-pointer text-center flex items-center justify-center gap-1 font-sans">
+                              <span>+ Append Evidence</span>
+                              <input
+                                type="file"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                onChange={(e) => handleRowAddDoc(alloc.id, e)}
+                                className="hidden"
+                              />
+                            </label>
+                          </div>
+                        </td>
                       </tr>
                     );
                   })}

@@ -34,6 +34,10 @@ interface Props {
   setOpeningFinancial: React.Dispatch<React.SetStateAction<any[]>>;
   recalculateAll: () => void;
   logActivity: (module: string, desc: string, detail?: any) => void;
+  packagingMaster: any[];
+  supportingMaster: any[];
+  chemicalsMaster?: any[];
+  setChipVariants?: React.Dispatch<React.SetStateAction<any[]>>;
 }
 
 export default function OpeningBalanceSetup({
@@ -48,9 +52,60 @@ export default function OpeningBalanceSetup({
   openingFinancial,
   setOpeningFinancial,
   recalculateAll,
-  logActivity
+  logActivity,
+  packagingMaster,
+  supportingMaster,
+  chemicalsMaster = [],
+  setChipVariants
 }: Props) {
   const [activeTab, setActiveTab] = useState<'inventory' | 'production' | 'financial'>('inventory');
+  const [invMaterialCategory, setInvMaterialCategory] = useState<string>('Packaging Materials');
+
+  const getDisplayUnit = () => {
+    if (invType === 'Finished Goods') return 'Pcs';
+    if (invType === 'Packaging & Supporting Materials') {
+      if (invMaterialCategory === 'Packaging Materials') {
+        const item = packagingMaster.find(pm => pm.id === invVariant);
+        return item?.unit || 'Pcs';
+      } else {
+        const item = supportingMaster.find(sm => sm.id === invVariant);
+        return item?.unit || 'Unit';
+      }
+    }
+    return 'Kg';
+  };
+
+  const getItemName = (item: any) => {
+    if (item.inventoryType === 'Finished Goods') {
+      const matchSku = skuProduk.find(sp => sp.id === item.variant);
+      const matchChip = chipVariants.find(cv => cv.id === item.variant);
+      return matchSku ? `${matchSku.id} - ${matchSku.nama}` : (matchChip ? `${matchChip.id} - ${matchChip.nama}` : item.variant);
+    }
+    if (item.inventoryType === 'Packaging & Supporting Materials') {
+      if (item.materialCategory === 'Packaging Materials') {
+        const match = packagingMaster.find(pm => pm.id === item.variant);
+        return match ? `${match.id} - ${match.nama}` : item.variant;
+      } else {
+        const match = supportingMaster.find(sm => sm.id === item.variant) || (chemicalsMaster || []).find(cc => cc.id === item.variant);
+        return match ? `${match.id} - ${match.nama}` : item.variant;
+      }
+    }
+    return item.variant;
+  };
+
+  const getItemUnit = (item: any) => {
+    if (item.inventoryType === 'Finished Goods') return 'Pcs';
+    if (item.inventoryType === 'Packaging & Supporting Materials') {
+      if (item.materialCategory === 'Packaging Materials') {
+        const match = packagingMaster.find(pm => pm.id === item.variant);
+        return match?.unit || 'Pcs';
+      } else {
+        const match = supportingMaster.find(sm => sm.id === item.variant) || (chemicalsMaster || []).find(cc => cc.id === item.variant);
+        return match?.unit || 'Unit';
+      }
+    }
+    return 'Kg';
+  };
 
   // Tab 1 Form states
   const [invId, setInvId] = useState<string>('');
@@ -93,6 +148,7 @@ export default function OpeningBalanceSetup({
     setInvId('');
     setInvType('Fresh Fruit');
     setInvVariant('');
+    setInvMaterialCategory('Packaging Materials');
     setInvQty(0);
     setInvCost(0);
     setInvNotes('');
@@ -138,12 +194,42 @@ export default function OpeningBalanceSetup({
       lokasiId: invFactory,
       inventoryType: invType,
       variant: invVariant,
+      materialCategory: invType === 'Packaging & Supporting Materials' ? invMaterialCategory : undefined,
       qty: Number(invQty),
       unitCost: Number(invCost),
       tanggal: invDate,
       notes: invNotes,
       status: 'Approved' // Treat as approved for calculation
     };
+
+    if (invType === 'Finished Goods' && setChipVariants) {
+      const matchInChips = chipVariants.some(cv => cv.id === invVariant);
+      if (!matchInChips) {
+        const skuObj = skuProduk.find(sp => sp.id === invVariant);
+        if (skuObj) {
+          const matchingFruit = fruitVariants.find(fv => fv.nama.toLowerCase().includes(skuObj.varian.toLowerCase())) || fruitVariants[0];
+          const newChipVariant = {
+            id: skuObj.id,
+            nama: skuObj.nama,
+            fruitVariantId: matchingFruit?.id || 'FV-01',
+            grade: 'A',
+            brand: skuObj.brand,
+            packagingSize: `${skuObj.gramasi}g`,
+            status: 'Active',
+            notes: 'Automated Sync via Opening Balance Setup',
+            targetYield: 10
+          };
+          setChipVariants(prev => {
+            const exists = prev.some(cv => cv.id === newChipVariant.id);
+            if (exists) return prev;
+            const updated = [...prev, newChipVariant];
+            localStorage.setItem('agridea_chip_variants', JSON.stringify(updated));
+            return updated;
+          });
+          logActivity('Master Chip Variants', `Menambahkan Master Chip Variant otomatis untuk SKU ${skuObj.sku}`, newChipVariant);
+        }
+      }
+    }
 
     if (isEditingInv) {
       setOpeningInventory(prev => prev.map(item => item.id === invId ? payload : item));
@@ -166,6 +252,9 @@ export default function OpeningBalanceSetup({
     setInvFactory(item.lokasiId);
     setInvType(item.inventoryType);
     setInvVariant(item.variant);
+    if (item.inventoryType === 'Packaging & Supporting Materials') {
+      setInvMaterialCategory(item.materialCategory || 'Packaging Materials');
+    }
     setInvQty(item.qty);
     setInvCost(item.unitCost);
     setInvDate(item.tanggal);
@@ -307,16 +396,16 @@ export default function OpeningBalanceSetup({
         return fruitVariants.map(fv => ({ key: fv.nama + ' Frozen', label: fv.nama + ' Frozen (Setengah Jadi)' }));
       case 'Chips':
         return fruitVariants.map(fv => ({ key: fv.nama + ' Keripik Jadi (Unpacked)', label: fv.nama + ' Keripik Unpacked (Setengah Jadi)' }));
-      case 'Packaging Material':
-        return [
-          { key: 'Standing Pouch 100g (Pcs)', label: 'Standing Pouch 100g (Pcs)' },
-          { key: 'Standing Pouch 250g (Pcs)', label: 'Standing Pouch 250g (Pcs)' },
-          { key: 'Karton Box Agridea (Pcs)', label: 'Karton Box Agridea (Pcs)' },
-          { key: 'Minyak Goreng Sawit (Litre)', label: 'Minyak Goreng Sawit (Litre)' },
-          { key: 'LPG 50kg (Cylinders)', label: 'LPG 50kg (Cylinders)' }
-        ];
+      case 'Packaging & Supporting Materials':
+        if (invMaterialCategory === 'Packaging Materials') {
+          return packagingMaster.map(pm => ({ key: pm.id, label: `${pm.id} - ${pm.nama}` }));
+        } else {
+          const supportOpts = (supportingMaster || []).map(sm => ({ key: sm.id, label: `${sm.id} - ${sm.nama}` }));
+          const chemicalOpts = (chemicalsMaster || []).map(cc => ({ key: cc.id, label: `${cc.id} - ${cc.nama} [Chemical/Consumable]` }));
+          return [...supportOpts, ...chemicalOpts];
+        }
       case 'Finished Goods':
-        return skuProduk.map(p => ({ key: p.sku, label: `${p.sku} - ${p.nama}` }));
+        return skuProduk.map(sp => ({ key: sp.id, label: `${sp.id} - ${sp.nama} [SKU: ${sp.sku}]` }));
       default:
         return [];
     }
@@ -422,10 +511,29 @@ export default function OpeningBalanceSetup({
                     <option value="Fresh Fruit">Fresh Fruit [Buah Segar]</option>
                     <option value="Frozen">Frozen Fruit [Setengah Jadi]</option>
                     <option value="Chips">Chips / Unpacked [Setengah Jadi]</option>
-                    <option value="Packaging Material">Packaging & Penolong</option>
+                    <option value="Packaging & Supporting Materials">Packaging & Supporting Materials</option>
                     <option value="Finished Goods">Finished Goods [SKU Produk Kemasan]</option>
                   </select>
                 </div>
+
+                {invType === 'Packaging & Supporting Materials' && (
+                  <div className="space-y-1 animate-fade-in">
+                    <label className="font-bold text-slate-700 block text-[11px]">Kategori Material *</label>
+                    <select
+                      value={invMaterialCategory}
+                      onChange={(e) => {
+                        setInvMaterialCategory(e.target.value);
+                        setInvVariant(''); // reset selected variant on category change
+                      }}
+                      className="border border-slate-200 rounded-xl p-2.5 w-full focus:ring-2 focus:ring-slate-900 focus:outline-none font-sans"
+                      required
+                    >
+                      <option value="Packaging Materials">Packaging Materials</option>
+                      <option value="Supporting Materials">Supporting Materials</option>
+                      <option value="Production Consumables">Production Consumables</option>
+                    </select>
+                  </div>
+                )}
 
                 <div className="space-y-1">
                   <label className="font-bold text-slate-700 block text-[11px]">Varian / SKU *</label>
@@ -441,6 +549,30 @@ export default function OpeningBalanceSetup({
                     ))}
                   </select>
                 </div>
+
+                {invType === 'Finished Goods' && invVariant && (() => {
+                  const selectedSku = skuProduk.find(sp => sp.id === invVariant);
+                  const selectedChipVariant = chipVariants.find(cv => cv.id === invVariant);
+                  const codeName = selectedSku?.sku || selectedChipVariant?.id || invVariant;
+                  const brandName = selectedSku?.brand || selectedChipVariant?.brand || 'AGRIDEA';
+                  const gramasi = selectedSku ? `${selectedSku.gramasi}g` : (selectedChipVariant?.packagingSize || '100g');
+                  return (
+                    <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-[11px] font-mono animate-fade-in">
+                      <div>
+                        <span className="text-slate-400 block font-bold uppercase text-[9px]">Variant SKU:</span>
+                        <span className="text-slate-800 font-extrabold">{codeName}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-bold uppercase text-[9px]">Brand:</span>
+                        <span className="text-slate-800 font-extrabold">{brandName}</span>
+                      </div>
+                      <div className="col-span-2">
+                        <span className="text-slate-400 block font-bold uppercase text-[9px]">Packaging Size / Gramasi:</span>
+                        <span className="text-slate-800 font-extrabold">{gramasi}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-1">
@@ -460,7 +592,7 @@ export default function OpeningBalanceSetup({
                     <label className="font-bold text-slate-700 block text-[11px]">Unit/Satuan</label>
                     <input
                       type="text"
-                      value={invType === 'Finished Goods' || invType === 'Packaging Material' ? 'Pcs / Unit' : 'Kg'}
+                      value={getDisplayUnit()}
                       className="border border-slate-200 rounded-xl p-2.5 w-full bg-slate-50 font-medium font-mono cursor-not-allowed"
                       readOnly
                     />
@@ -561,12 +693,17 @@ export default function OpeningBalanceSetup({
                       {openingInventory.map((item) => (
                         <tr key={item.id} className="border-b hover:bg-slate-50 font-medium">
                           <td className="py-3 px-3 font-bold text-indigo-700">{lokasi.find(l=>l.id===item.lokasiId)?.nama || item.lokasiId}</td>
-                          <td className="py-3 px-3 font-mono font-bold text-slate-900">{item.variant}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-slate-900 text-xs">
+                            <div>{getItemName(item)}</div>
+                            {item.materialCategory && (
+                              <span className="text-[9px] text-indigo-600 bg-indigo-50 px-1 rounded font-sans uppercase font-bold">{item.materialCategory}</span>
+                            )}
+                          </td>
                           <td className="py-3 px-3">
                             <span className="bg-slate-100 text-slate-800 font-bold px-2 py-0.5 rounded text-[10px] uppercase">{item.inventoryType}</span>
                           </td>
                           <td className="py-3 px-3 text-right font-mono font-extrabold">
-                            {item.qty.toLocaleString()} {item.inventoryType === 'Finished Goods' || item.inventoryType === 'Packaging Material' ? 'pcs' : 'kg'}
+                            {item.qty.toLocaleString()} <span className="lowercase font-bold text-slate-400">{getItemUnit(item)}</span>
                           </td>
                           <td className="py-3 px-3 text-right font-mono font-bold text-emerald-600">Rp {item.unitCost.toLocaleString()}</td>
                           <td className="py-3 px-3 text-right font-mono font-extrabold text-slate-950">Rp {(item.qty * item.unitCost).toLocaleString()}</td>
